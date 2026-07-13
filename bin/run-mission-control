@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/bin/agentic-env"
+export HOSTNAME="127.0.0.1"
+export PORT="3000"
+cd "$ROOT/mission-control"
+exec pnpm start:standalone

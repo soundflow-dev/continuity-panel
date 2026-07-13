@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/bin/agentic-env"
+
+if curl -fsS "$MC_URL/api/status" >/dev/null 2>&1 || curl -fsS "$MC_URL/login" >/dev/null 2>&1; then
+  echo "Mission Control: running at $MC_URL"
+else
+  echo "Mission Control: stopped"
+  exit 1
+fi

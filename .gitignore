@@ -1,0 +1,9 @@
+home/
+runtime/
+tools/
+mission-control/
+projects/
+*.log
+*.pid
+.DS_Store
+config/dev.builderz.mission-control.agentic-os.plist

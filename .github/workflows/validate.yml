@@ -1,0 +1,25 @@
+name: Validate installer kit
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate shell syntax
+        run: bash -n install.sh "Install Agentic OS.command" bin/*
+      - name: Validate launchd template
+        run: plutil -lint config/dev.builderz.mission-control.agentic-os.plist.template
+      - name: Reject generated or sensitive paths
+        run: |
+          test ! -e home
+          test ! -e runtime
+          test ! -e tools
+          test ! -e mission-control
+          ! git grep -nE 'AUTH_''PASS=[^[:space:]]+|API_''KEY=[^[:space:]]+|/''Users/[^/]+'

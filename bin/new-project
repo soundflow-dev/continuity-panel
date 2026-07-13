@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+NAME="${1:-}"
+if [[ -z "$NAME" || "$NAME" == */* || "$NAME" == .* ]]; then
+  echo "Usage: $0 project-name" >&2
+  exit 2
+fi
+
+TARGET="$ROOT/projects/$NAME"
+if [[ -e "$TARGET" ]]; then
+  echo "Project already exists: $TARGET" >&2
+  exit 1
+fi
+
+mkdir -p "$TARGET"
+cp "$ROOT/templates/project/AGENTS.md" "$TARGET/AGENTS.md"
+cp "$ROOT/templates/project/PROJECT_STATE.md" "$TARGET/PROJECT_STATE.md"
+git -C "$TARGET" init -q
+echo "Created $TARGET"

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/bin/agentic-env"
+LABEL="dev.builderz.mission-control.agentic-os"
+DOMAIN="gui/$(id -u)"
+
+if ! launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1; then
+  echo "Mission Control is not running."
+  exit 0
+fi
+
+launchctl bootout "$DOMAIN/$LABEL"
+echo "Mission Control stopped."

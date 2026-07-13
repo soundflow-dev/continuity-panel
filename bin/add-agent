@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/bin/agentic-env"
+AGENT="${1:-}"
+
+case "$AGENT" in
+  codex)
+    npm install --global --prefix "$ROOT/tools/codex" "@openai/codex@0.144.3"
+    mkdir -p "$HOME/.codex/skills" "$HOME/.codex/agents"
+    if [[ ! -f "$HOME/.codex/AGENTS.md" ]]; then
+      cp "$ROOT/templates/codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
+    fi
+    echo "Codex instalado. Autentique com: $ROOT/bin/codex login"
+    ;;
+  hermes)
+    if [[ ! -x "$ROOT/runtime/uv-bin/uv" ]]; then
+      UV_INSTALL_DIR="$ROOT/runtime/uv-bin" sh -c "$(curl -LsSf https://astral.sh/uv/0.11.28/install.sh)"
+    fi
+    export PATH="$ROOT/runtime/uv-bin:$PATH"
+    export UV_PYTHON_INSTALL_DIR="$ROOT/runtime/python"
+    HERMES="$HOME/.hermes/hermes-agent"
+    mkdir -p "$HOME/.hermes"
+    if [[ ! -d "$HERMES/.git" ]]; then
+      git clone https://github.com/NousResearch/hermes-agent.git "$HERMES"
+    fi
+    git -C "$HERMES" fetch --tags
+    git -C "$HERMES" checkout v2026.7.7.2
+    uv python install 3.11
+    PYTHON="$(uv python find 3.11)"
+    UV_PROJECT_ENVIRONMENT="$HERMES/venv" uv venv --clear --python "$PYTHON" "$HERMES/venv"
+    UV_PROJECT_ENVIRONMENT="$HERMES/venv" uv sync --project "$HERMES" --extra all --locked
+    if [[ ! -f "$HOME/.hermes/SOUL.md" ]]; then
+      cp "$ROOT/templates/hermes/SOUL.md" "$HOME/.hermes/SOUL.md"
+    fi
+    echo "Hermes instalado. Configure modelos com: $ROOT/bin/hermes model"
+    ;;
+  *)
+    echo "Uso: $0 codex|hermes" >&2
+    echo "Agentes disponíveis: codex, hermes" >&2
+    exit 2
+    ;;
+esac

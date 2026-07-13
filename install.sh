@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MC_VERSION="v2.1.0"
+NODE_VERSION="22.23.1"
+PNPM_VERSION="10.29.3"
+
+case "$(uname -s)" in
+  Darwin) NODE_OS="darwin" ;;
+  *) echo "Este instalador suporta atualmente apenas macOS." >&2; exit 1 ;;
+esac
+case "$(uname -m)" in
+  arm64) NODE_ARCH="arm64" ;;
+  x86_64) NODE_ARCH="x64" ;;
+  *) echo "Arquitetura de CPU não suportada." >&2; exit 1 ;;
+esac
+
+echo "A instalar em $ROOT"
+mkdir -p "$ROOT/runtime" "$ROOT/bin" "$ROOT/config" "$ROOT/home/.codex/skills" \
+  "$ROOT/home/.codex/agents" "$ROOT/home/.hermes" "$ROOT/projects" "$ROOT/tools"
+
+if [[ ! -x "$ROOT/runtime/node/bin/node" ]]; then
+  ARCHIVE="node-v$NODE_VERSION-$NODE_OS-$NODE_ARCH.tar.gz"
+  curl -fsSL "https://nodejs.org/dist/v$NODE_VERSION/$ARCHIVE" -o "$ROOT/runtime/$ARCHIVE"
+  tar -xzf "$ROOT/runtime/$ARCHIVE" -C "$ROOT/runtime"
+  mv "$ROOT/runtime/${ARCHIVE%.tar.gz}" "$ROOT/runtime/node"
+  rm "$ROOT/runtime/$ARCHIVE"
+fi
+
+export PATH="$ROOT/runtime/node/bin:$PATH"
+export HOME="$ROOT/home"
+
+npm install --global --prefix "$ROOT/runtime/node" "pnpm@$PNPM_VERSION"
+
+if [[ ! -d "$ROOT/mission-control/.git" ]]; then
+  git clone https://github.com/builderz-labs/mission-control.git "$ROOT/mission-control"
+fi
+git -C "$ROOT/mission-control" fetch --tags
+git -C "$ROOT/mission-control" checkout "$MC_VERSION"
+
+MC_ENV="$ROOT/mission-control/.env"
+if [[ ! -f "$MC_ENV" ]]; then
+  cp "$ROOT/mission-control/.env.example" "$MC_ENV"
+  chmod 600 "$MC_ENV"
+fi
+
+ensure_env() {
+  local key="$1" value="$2"
+  if ! grep -q "^${key}=" "$MC_ENV"; then
+    printf '%s=%s\n' "$key" "$value" >> "$MC_ENV"
+  fi
+}
+ensure_env NEXT_PUBLIC_GATEWAY_OPTIONAL true
+ensure_env MC_WORKSPACE_ROOT "$ROOT/projects"
+ensure_env MISSION_CONTROL_DATA_DIR "$ROOT/mission-control/.data"
+ensure_env MC_SKILLS_USER_CODEX_DIR "$ROOT/home/.codex/skills"
+
+cd "$ROOT/mission-control"
+pnpm install --frozen-lockfile
+pnpm rebuild better-sqlite3 node-pty
+pnpm build
+
+ESCAPED_ROOT="$(printf '%s' "$ROOT" | sed 's/[&|\\]/\\&/g')"
+sed "s|__ROOT__|$ESCAPED_ROOT|g" \
+  "$ROOT/config/dev.builderz.mission-control.agentic-os.plist.template" \
+  > "$ROOT/config/dev.builderz.mission-control.agentic-os.plist"
+
+chmod +x "$ROOT/install.sh" "$ROOT/Install Agentic OS.command" "$ROOT/bin/"*
+echo "Instalação base concluída."
+echo "Adicione agentes com: $ROOT/bin/add-agent codex|hermes"
+echo "Arranque com: $ROOT/bin/start"
+

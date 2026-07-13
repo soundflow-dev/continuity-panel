@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/bin/agentic-env"
+cd "$ROOT/mission-control"
+exec node scripts/mc-cli.cjs "$@"

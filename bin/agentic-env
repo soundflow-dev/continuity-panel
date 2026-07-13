@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+export AGENTIC_OS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export HOME="$AGENTIC_OS_ROOT/home"
+export CODEX_HOME="$HOME/.codex"
+export HERMES_HOME="$HOME/.hermes"
+export MC_URL="http://127.0.0.1:3000"
+export MC_WORKSPACE_ROOT="$AGENTIC_OS_ROOT/projects"
+export MISSION_CONTROL_DATA_DIR="$AGENTIC_OS_ROOT/mission-control/.data"
+export UV_PYTHON_INSTALL_DIR="$AGENTIC_OS_ROOT/runtime/python"
+export PATH="$AGENTIC_OS_ROOT/bin:$AGENTIC_OS_ROOT/tools/codex/bin:$HERMES_HOME/hermes-agent/venv/bin:$AGENTIC_OS_ROOT/runtime/node/bin:$AGENTIC_OS_ROOT/runtime/uv-bin:${PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"
