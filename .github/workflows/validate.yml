@@ -16,6 +16,29 @@ jobs:
         run: bash -n install.sh "Install ContinuityPanel.command" bin/*
       - name: Validate launchd template
         run: plutil -lint config/dev.continuitypanel.mission-control.plist.template
+      - name: Validate local project synchronization
+        run: |
+          ROOT="$RUNNER_TEMP/project-sync"
+          mkdir -p "$ROOT/projects/Test_App" "$ROOT/mission-control/.data"
+          sqlite3 "$ROOT/mission-control/.data/mission-control.db" "
+            CREATE TABLE projects (
+              id INTEGER PRIMARY KEY,
+              workspace_id INTEGER NOT NULL DEFAULT 1,
+              name TEXT NOT NULL,
+              slug TEXT NOT NULL,
+              description TEXT,
+              ticket_prefix TEXT NOT NULL,
+              ticket_counter INTEGER NOT NULL DEFAULT 0,
+              status TEXT NOT NULL DEFAULT 'active',
+              created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+              updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+            );
+            CREATE UNIQUE INDEX idx_project_slug ON projects(workspace_id, slug);
+            CREATE UNIQUE INDEX idx_project_prefix ON projects(workspace_id, ticket_prefix);
+          "
+          CONTINUITYPANEL_ROOT="$ROOT" ./bin/sync-projects
+          CONTINUITYPANEL_ROOT="$ROOT" ./bin/sync-projects
+          test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT COUNT(*) FROM projects WHERE name='Test_App' AND slug='test-app' AND ticket_prefix='TESTAPP';")" = "1"
       - name: Validate Mission Control integration patch
         run: |
           git clone --depth 1 --branch v2.1.0 https://github.com/builderz-labs/mission-control.git "$RUNNER_TEMP/mission-control"
@@ -38,4 +61,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ContinuityPanel-macOS
-          path: dist/ContinuityPanel-0.4.3-macos.zip
+          path: dist/ContinuityPanel-0.4.4-macos.zip

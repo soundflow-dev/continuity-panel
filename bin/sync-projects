@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${CONTINUITYPANEL_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+PROJECTS_DIR="$ROOT/projects"
+DB="$ROOT/mission-control/.data/mission-control.db"
+REQUESTED_NAME="${1:-}"
+
+if [[ ! -f "$DB" ]]; then
+  echo "Mission Control database is not ready; project sync deferred."
+  exit 0
+fi
+
+if [[ "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='projects';")" != "1" ]]; then
+  echo "Mission Control project schema is not ready; project sync deferred."
+  exit 0
+fi
+
+mkdir -p "$PROJECTS_DIR"
+shopt -s nullglob
+
+registered=0
+for target in "$PROJECTS_DIR"/*; do
+  [[ -d "$target" ]] || continue
+  name="$(basename "$target")"
+  [[ -z "$REQUESTED_NAME" || "$name" == "$REQUESTED_NAME" ]] || continue
+
+  if [[ ! "$name" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]]; then
+    echo "Skipping unsupported project directory name: $name" >&2
+    continue
+  fi
+
+  slug="$(printf '%s' "$name" | tr '[:upper:]_' '[:lower:]-')"
+  existing="$(sqlite3 "$DB" "SELECT id FROM projects WHERE workspace_id=1 AND slug='$slug' LIMIT 1;")"
+  if [[ -n "$existing" ]]; then
+    continue
+  fi
+
+  prefix_base="$(printf '%s' "$name" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9' | cut -c1-12)"
+  [[ -n "$prefix_base" ]] || prefix_base="PROJECT"
+  prefix="$prefix_base"
+  suffix=2
+  while [[ -n "$(sqlite3 "$DB" "SELECT id FROM projects WHERE workspace_id=1 AND ticket_prefix='$prefix' LIMIT 1;")" ]]; do
+    suffix_text="$suffix"
+    keep=$((12 - ${#suffix_text}))
+    prefix="${prefix_base:0:$keep}${suffix_text}"
+    suffix=$((suffix + 1))
+  done
+
+  sqlite3 "$DB" "
+    PRAGMA busy_timeout=5000;
+    INSERT INTO projects (
+      workspace_id, name, slug, description, ticket_prefix, status, created_at, updated_at
+    ) VALUES (
+      1, '$name', '$slug', 'Local ContinuityPanel project', '$prefix', 'active', unixepoch(), unixepoch()
+    );
+  " >/dev/null
+  echo "Registered $name in Mission Control as $prefix."
+  registered=$((registered + 1))
+done
+
+echo "Project sync complete: $registered registered."

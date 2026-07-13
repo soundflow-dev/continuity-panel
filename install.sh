@@ -84,6 +84,16 @@ pnpm build
 chmod +x "$ROOT/install.sh" "$ROOT/Install ContinuityPanel.command" "$ROOT/bin/"*
 "$ROOT/bin/install-service"
 
+# Wait briefly for Mission Control to initialize its schema, then register any
+# project folders created by an earlier ContinuityPanel version.
+for _ in {1..30}; do
+  if curl -fsS "http://127.0.0.1:3000/api/setup" >/dev/null 2>&1; then
+    "$ROOT/bin/sync-projects"
+    break
+  fi
+  sleep 1
+done
+
 echo "Instalação base do ContinuityPanel concluída."
 echo "Adicione agentes através da app ou com: $ROOT/bin/add-agent <agent>"
 echo "Mission Control: http://127.0.0.1:3000"

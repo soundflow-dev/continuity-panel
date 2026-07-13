@@ -18,4 +18,5 @@ mkdir -p "$TARGET"
 cp "$ROOT/templates/project/AGENTS.md" "$TARGET/AGENTS.md"
 cp "$ROOT/templates/project/PROJECT_STATE.md" "$TARGET/PROJECT_STATE.md"
 git -C "$TARGET" init -q
+"$ROOT/bin/sync-projects" "$NAME"
 echo "Created $TARGET"
