@@ -12,7 +12,8 @@ enum CommandRunner {
         executable: URL,
         arguments: [String] = [],
         currentDirectory: URL? = nil,
-        standardInput: Data? = nil
+        standardInput: Data? = nil,
+        environment: [String: String] = [:]
     ) async throws -> CommandResult {
         try await Task.detached(priority: .userInitiated) {
             let process = Process()
@@ -20,6 +21,7 @@ enum CommandRunner {
             process.executableURL = executable
             process.arguments = arguments
             process.currentDirectoryURL = currentDirectory
+            process.environment = ProcessInfo.processInfo.environment.merging(environment) { _, override in override }
             process.standardOutput = outputPipe
             process.standardError = outputPipe
 

@@ -142,12 +142,17 @@ struct HermesConfigurationView: View {
                     GroupBox("Connection") {
                         VStack(alignment: .leading, spacing: 12) {
                             ForEach(provider.fields) { field in
-                                if field.secret {
-                                    SecureField(field.label, text: valueBinding(for: field.name))
-                                        .textFieldStyle(.roundedBorder)
-                                } else {
-                                    TextField(field.label, text: valueBinding(for: field.name))
-                                        .textFieldStyle(.roundedBorder)
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text(field.label)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    if field.secret {
+                                        SecureField("Enter \(field.name)", text: valueBinding(for: field.name))
+                                            .textFieldStyle(.roundedBorder)
+                                    } else {
+                                        TextField("Optional", text: valueBinding(for: field.name))
+                                            .textFieldStyle(.roundedBorder)
+                                    }
                                 }
                             }
                             Text("Secrets are written only to Hermes' private environment with restricted permissions.")
