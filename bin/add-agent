@@ -5,9 +5,23 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/bin/agentic-env"
 AGENT="${1:-}"
 
+install_npm_agent() {
+  local agent="$1" package="$2"
+  npm install --global --prefix "$ROOT/tools/$agent" "$package"
+  echo "$agent installed. Configure its account or provider in ContinuityPanel."
+}
+
+ensure_uv() {
+  if [[ ! -x "$ROOT/runtime/uv-bin/uv" ]]; then
+    UV_INSTALL_DIR="$ROOT/runtime/uv-bin" sh -c "$(curl -LsSf https://astral.sh/uv/0.11.28/install.sh)"
+  fi
+  export PATH="$ROOT/runtime/uv-bin:$PATH"
+  export UV_PYTHON_INSTALL_DIR="$ROOT/runtime/python"
+}
+
 case "$AGENT" in
   codex)
-    npm install --global --prefix "$ROOT/tools/codex" "@openai/codex@0.144.3"
+    install_npm_agent codex "@openai/codex@0.144.3"
     mkdir -p "$HOME/.codex/skills" "$HOME/.codex/agents"
     if [[ ! -f "$HOME/.codex/AGENTS.md" ]]; then
       cp "$ROOT/templates/codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
@@ -15,11 +29,7 @@ case "$AGENT" in
     echo "Codex instalado. Autentique com: $ROOT/bin/codex login"
     ;;
   hermes)
-    if [[ ! -x "$ROOT/runtime/uv-bin/uv" ]]; then
-      UV_INSTALL_DIR="$ROOT/runtime/uv-bin" sh -c "$(curl -LsSf https://astral.sh/uv/0.11.28/install.sh)"
-    fi
-    export PATH="$ROOT/runtime/uv-bin:$PATH"
-    export UV_PYTHON_INSTALL_DIR="$ROOT/runtime/python"
+    ensure_uv
     HERMES="$HOME/.hermes/hermes-agent"
     mkdir -p "$HOME/.hermes"
     if [[ ! -d "$HERMES/.git" ]]; then
@@ -36,9 +46,40 @@ case "$AGENT" in
     fi
     echo "Hermes instalado. Configure modelos com: $ROOT/bin/hermes model"
     ;;
+  claude)
+    install_npm_agent claude "@anthropic-ai/claude-code@2.1.207"
+    ;;
+  gemini)
+    install_npm_agent gemini "@google/gemini-cli@0.50.0"
+    ;;
+  copilot)
+    install_npm_agent copilot "@github/copilot@1.0.70"
+    ;;
+  opencode)
+    install_npm_agent opencode "opencode-ai@1.17.19"
+    ;;
+  qwen)
+    install_npm_agent qwen "@qwen-code/qwen-code@0.19.9"
+    ;;
+  kimi)
+    install_npm_agent kimi "@moonshot-ai/kimi-code@0.23.6"
+    ;;
+  aider)
+    ensure_uv
+    UV_TOOL_DIR="$ROOT/tools/aider/tool" UV_TOOL_BIN_DIR="$ROOT/tools/aider/bin" \
+      uv tool install --force --python 3.12 "aider-chat==0.86.0"
+    echo "aider installed. Configure its provider in ContinuityPanel."
+    ;;
+  goose)
+    mkdir -p "$ROOT/tools/goose/bin" "$ROOT/runtime/installers"
+    curl -fsSL "https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh" \
+      -o "$ROOT/runtime/installers/goose.sh"
+    GOOSE_BIN_DIR="$ROOT/tools/goose/bin" GOOSE_VERSION="v1.41.0" CONFIGURE=false \
+      bash "$ROOT/runtime/installers/goose.sh"
+    echo "goose installed. Configure its provider in ContinuityPanel."
+    ;;
   *)
-    echo "Uso: $0 codex|hermes" >&2
-    echo "Agentes disponíveis: codex, hermes" >&2
+    echo "Usage: $0 codex|hermes|claude|gemini|copilot|opencode|goose|aider|qwen|kimi" >&2
     exit 2
     ;;
 esac

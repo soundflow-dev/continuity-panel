@@ -45,16 +45,20 @@ if [[ ! -f "$MC_ENV" ]]; then
   chmod 600 "$MC_ENV"
 fi
 
-ensure_env() {
+set_env() {
   local key="$1" value="$2"
-  if ! grep -q "^${key}=" "$MC_ENV"; then
-    printf '%s=%s\n' "$key" "$value" >> "$MC_ENV"
+  local escaped_value
+  escaped_value="$(printf '%s' "$value" | sed 's/[&|\\]/\\&/g; s/"/\\"/g')"
+  if grep -q "^${key}=" "$MC_ENV"; then
+    sed -i '' "s|^${key}=.*|${key}=\"${escaped_value}\"|" "$MC_ENV"
+  else
+    printf '%s="%s"\n' "$key" "$value" >> "$MC_ENV"
   fi
 }
-ensure_env NEXT_PUBLIC_GATEWAY_OPTIONAL true
-ensure_env MC_WORKSPACE_ROOT "$ROOT/projects"
-ensure_env MISSION_CONTROL_DATA_DIR "$ROOT/mission-control/.data"
-ensure_env MC_SKILLS_USER_CODEX_DIR "$ROOT/home/.codex/skills"
+set_env NEXT_PUBLIC_GATEWAY_OPTIONAL true
+set_env MC_WORKSPACE_ROOT "$ROOT/projects"
+set_env MISSION_CONTROL_DATA_DIR "$ROOT/mission-control/.data"
+set_env MC_SKILLS_USER_CODEX_DIR "$ROOT/home/.codex/skills"
 
 cd "$ROOT/mission-control"
 pnpm install --frozen-lockfile
@@ -65,5 +69,5 @@ chmod +x "$ROOT/install.sh" "$ROOT/Install ContinuityPanel.command" "$ROOT/bin/"
 "$ROOT/bin/install-service"
 
 echo "Instalação base do ContinuityPanel concluída."
-echo "Adicione agentes com: $ROOT/bin/add-agent codex|hermes"
+echo "Adicione agentes através da app ou com: $ROOT/bin/add-agent <agent>"
 echo "Mission Control: http://127.0.0.1:3000"

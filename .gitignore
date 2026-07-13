@@ -7,3 +7,6 @@ projects/
 *.pid
 .DS_Store
 config/dev.continuitypanel.mission-control.plist
+.build/
+dist/
+__pycache__/

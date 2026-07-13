@@ -16,6 +16,10 @@ jobs:
         run: bash -n install.sh "Install ContinuityPanel.command" bin/*
       - name: Validate launchd template
         run: plutil -lint config/dev.continuitypanel.mission-control.plist.template
+      - name: Test native app
+        run: swift test
+      - name: Package native app
+        run: ./script/build_and_run.sh --package
       - name: Reject generated or sensitive paths
         run: |
           test ! -e home
@@ -23,3 +27,7 @@ jobs:
           test ! -e tools
           test ! -e mission-control
           ! git grep -nE 'AUTH_''PASS=[^[:space:]]+|API_''KEY=[^[:space:]]+|/''Users/[^/]+'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ContinuityPanel-macOS
+          path: dist/ContinuityPanel-0.1.0-macos.zip
