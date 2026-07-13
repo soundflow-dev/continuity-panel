@@ -11,6 +11,7 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 ## What it provides
 
 - Native SwiftUI app for installation, status, agents, cloud providers, and projects.
+- Mission Control dashboard and first-time setup embedded directly in the native app.
 - One-click graphical installation with no Docker, Homebrew, or remote server.
 - Pinned, reproducible versions of Mission Control and local runtimes.
 - Built-in catalog for Codex, Hermes, Claude Code, Gemini CLI, GitHub Copilot CLI, OpenCode, goose, Aider, Qwen Code, and Kimi Code.
@@ -29,12 +30,13 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 
 ## Install the app
 
-Download `ContinuityPanel-0.1.0-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
+Download `ContinuityPanel-0.2.0-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
 
-1. Select **Install Environment**.
-2. Add the agents you want under **Agents & Models**.
-3. Sign in or connect cloud providers through the graphical interface.
-4. Create a local project or restore one from its own GitHub repository.
+1. Select **Install Environment** in the app.
+2. Create the local Mission Control administrator when the embedded setup appears.
+3. Add the agents you want under **Agents & Models**.
+4. Sign in or connect cloud providers through the graphical interface.
+5. Create a local project or restore one from its own GitHub repository.
 
 The app never sends a project to the ContinuityPanel maintainer's GitHub account. New projects remain local until their owner explicitly chooses a GitHub account, repository, organization, and visibility.
 
@@ -89,7 +91,7 @@ After installation, Mission Control runs automatically at login. You do not need
 
 Use `start` to restart it manually, `status` to check it, and `stop` to stop it for the current login session. Because automatic startup remains enabled, a service stopped manually will run again the next time you log in. Keep the ContinuityPanel folder in the same location after installation because the registered service uses its absolute path.
 
-Open <http://127.0.0.1:3000/setup> on first use and create the local administrator account.
+Open **Mission Control** in the ContinuityPanel sidebar. Its first-time setup and dashboard are displayed inside the app; opening a localhost URL manually is not required.
 
 ## Create an application
 

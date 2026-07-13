@@ -41,7 +41,7 @@ struct OverviewView: View {
                     StatusCard(
                         title: "Mission Control",
                         value: store.state.missionControlRunning ? "Running" : "Stopped",
-                        detail: "Local dashboard on 127.0.0.1:3000",
+                        detail: "Available directly inside ContinuityPanel",
                         systemImage: "rectangle.3.group",
                         color: store.state.missionControlRunning ? .green : .secondary
                     )
@@ -73,8 +73,6 @@ struct OverviewView: View {
                                 Task { await store.installEnvironment() }
                             }
                             if store.state.missionControlRunning {
-                                Button("Open Mission Control") { store.openMissionControl() }
-                                    .buttonStyle(.borderedProminent)
                                 Button("Stop") { Task { await store.stopMissionControl() } }
                             } else {
                                 Button("Start Mission Control") { Task { await store.startMissionControl() } }

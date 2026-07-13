@@ -114,11 +114,6 @@ final class EnvironmentStore {
         return created
     }
 
-    func openMissionControl() {
-        guard let url = URL(string: "http://127.0.0.1:3000") else { return }
-        NSWorkspace.shared.open(url)
-    }
-
     func revealProjects() {
         try? FileManager.default.createDirectory(at: AppPaths.projects, withIntermediateDirectories: true)
         NSWorkspace.shared.activateFileViewerSelecting([AppPaths.projects])

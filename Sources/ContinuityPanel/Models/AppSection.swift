@@ -1,6 +1,7 @@
 import Foundation
 
 enum AppSection: String, CaseIterable, Identifiable {
+    case missionControl
     case overview
     case agents
     case projects
@@ -10,6 +11,7 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .missionControl: "Mission Control"
         case .overview: "Overview"
         case .agents: "Agents & Models"
         case .projects: "Projects"
@@ -19,6 +21,7 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
+        case .missionControl: "rectangle.3.group"
         case .overview: "rectangle.grid.2x2"
         case .agents: "point.3.connected.trianglepath.dotted"
         case .projects: "folder"
