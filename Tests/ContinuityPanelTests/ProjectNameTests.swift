@@ -26,8 +26,11 @@ import Testing
         authType: "oauth_external",
         tab: "accounts",
         signupURL: "",
-        fields: []
+        fields: [],
+        defaultBaseURL: "https://example.invalid/v1",
+        models: ["example-model"]
     )
     #expect(provider.usesAccountLogin)
     #expect(provider.authenticationLabel.contains("OAuth"))
+    #expect(provider.hasModelCatalog)
 }
