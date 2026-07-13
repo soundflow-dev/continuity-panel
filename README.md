@@ -2,72 +2,92 @@
   <img src="assets/continuity-panel-logo.svg" alt="ContinuityPanel" width="760">
 </p>
 
-A reproducible, local-first macOS workspace for orchestrating cloud-powered coding agents without coupling project continuity to one provider or chat session.
+A native, local-first macOS control panel for orchestrating cloud-powered coding agents without coupling project continuity to one provider or chat session.
 
-ContinuityPanel installs [Builderz Labs Mission Control](https://github.com/builderz-labs/mission-control), keeps agent installations isolated inside one folder, and gives every application a durable Git-based handoff file. It is an orchestration environment, not an operating-system distribution.
+ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/builderz-labs/mission-control), keeps agent installations isolated under the current user's Application Support folder, and gives every project a durable Git-based handoff file. It is an orchestration environment, not an operating-system distribution.
 
 > Status: early-stage community project. Mission Control itself is alpha software; back up important projects and review changes before production use.
 
 ## What it provides
 
-- One-click macOS bootstrap through `Install ContinuityPanel.command`.
+- Native SwiftUI app for installation, status, agents, cloud providers, and projects.
+- One-click graphical installation with no Docker, Homebrew, or remote server.
 - Pinned, reproducible versions of Mission Control and local runtimes.
-- Optional agent modules; currently Codex and Hermes Agent.
+- Built-in catalog for Codex, Hermes, Claude Code, Gemini CLI, GitHub Copilot CLI, OpenCode, goose, Aider, Qwen Code, and Kimi Code.
+- Separate cloud-provider catalog for OpenAI, Anthropic, OpenRouter, Google, Z.AI/GLM, Mistral, Groq, xAI, DeepSeek, and Moonshot.
 - Local Mission Control service managed by `launchd`.
 - Shared `AGENTS.md` and `PROJECT_STATE.md` protocol for agent handoff.
+- Cloud-provider secrets stored in the current user's macOS Keychain.
 - No bundled models and no credentials committed to Git.
 
 ## Requirements
 
 - macOS on Apple Silicon or Intel.
 - Internet access.
-- Git. On a clean Mac, run `xcode-select --install` if Git requests the Command Line Tools.
+- Apple Command Line Tools. ContinuityPanel detects them and Git; macOS can install them on demand.
 - Cloud subscriptions or API credentials for whichever agents/models you choose.
 
-## Install
+## Install the app
 
-The recommended location is `~/continuity-panel`:
+Download `ContinuityPanel-0.1.0-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
+
+1. Select **Install Environment**.
+2. Add the agents you want under **Agents & Models**.
+3. Sign in or connect cloud providers through the graphical interface.
+4. Create a local project or restore one from its own GitHub repository.
+
+The app never sends a project to the ContinuityPanel maintainer's GitHub account. New projects remain local until their owner explicitly chooses a GitHub account, repository, organization, and visibility.
+
+> The current community build is ad-hoc signed. Until a notarized Developer ID build is available, macOS may require **Control-click → Open** on first launch.
+
+## Build from source
+
+Contributors can clone the source anywhere, then build and run the native app:
 
 ```bash
 cd ~
 git clone https://github.com/soundflow-dev/continuity-panel.git
 cd continuity-panel
-open "Install ContinuityPanel.command"
+./script/build_and_run.sh
 ```
 
-Alternatively, run the same installer in Terminal:
+Create the distributable zip with:
 
 ```bash
-./install.sh
+./script/build_and_run.sh --package
 ```
 
-The installer downloads Node.js, installs pnpm, checks out Mission Control v2.1.0, builds it, and prepares a user-level macOS service. It does not require Docker or administrator access.
+The app copies its bundled installation engine to `~/Library/Application Support/ContinuityPanel`, downloads Node.js, installs pnpm, checks out Mission Control v2.1.0, builds it, and registers a user-level macOS service. Mission Control starts immediately and is started automatically whenever you log in. It does not require administrator access.
 
 ## Add agents
 
-Agents are deliberately separate from the base installation:
+Agents are added from the **Agents & Models** screen. The command-line engine remains available for diagnostics and contributors:
 
 ```bash
 ./bin/add-agent codex
 ./bin/add-agent hermes
 ```
 
-Then authenticate or select cloud providers:
+The graphical interface handles agent installation, Codex browser login, Hermes provider/model configuration, and reusable provider credentials. Equivalent diagnostic commands include:
 
 ```bash
 ./bin/codex login
 ./bin/hermes model
 ```
 
-Credentials and sessions live under the ignored `home/` directory. They are never part of the installer repository. Adding a future agent should be implemented as another isolated case in `bin/add-agent` plus a small launcher in `bin/`.
+Agent credentials and sessions live in the isolated Application Support environment. Reusable cloud API keys are stored in the macOS Keychain. They are never part of this repository. Adding a future agent means extending the declarative app catalog and its isolated installer adapter.
 
-## Start Mission Control
+## Mission Control service
+
+After installation, Mission Control runs automatically at login. You do not need to run a start command after restarting the Mac. These commands are optional diagnostics from the installed engine directory.
 
 ```bash
 ./bin/start
 ./bin/status
 ./bin/stop
 ```
+
+Use `start` to restart it manually, `status` to check it, and `stop` to stop it for the current login session. Because automatic startup remains enabled, a service stopped manually will run again the next time you log in. Keep the ContinuityPanel folder in the same location after installation because the registered service uses its absolute path.
 
 Open <http://127.0.0.1:3000/setup> on first use and create the local administrator account.
 
@@ -87,12 +107,11 @@ Commit both files with the application and give each application its own GitHub 
 
 ## Reinstall after formatting a Mac
 
-1. Install Git/Command Line Tools.
-2. Clone this repository again into `~/continuity-panel`.
-3. Run `Install ContinuityPanel.command`.
-4. Add the desired agents using `bin/add-agent`.
-5. Authenticate cloud accounts again.
-6. Clone each application repository into `projects/`.
+1. Download and install ContinuityPanel.app again.
+2. Allow macOS to install Command Line Tools if requested.
+3. Select **Install Environment** and add the desired agents in the GUI.
+4. Authenticate cloud accounts again.
+5. Clone each application from its owner's GitHub account or organization.
 
 Downloaded dependencies do not need to be backed up. Mission Control history and local agent sessions are runtime data; if you need them, back them up separately to encrypted storage. Never commit them to this repository.
 
@@ -100,10 +119,15 @@ Downloaded dependencies do not need to be backed up. Mission Control history and
 
 ```text
 continuity-panel/
-├── bin/                 # start, stop, agent and project commands
+├── Sources/             # native SwiftUI application
+├── Tests/               # native application tests
+├── Packaging/           # bundle metadata and app icon
+├── script/              # build, run, and package entrypoint
+├── bin/                 # isolated service, agent, and project engine
 ├── config/              # launchd service template
-├── templates/           # Codex, Hermes and project handoff defaults
-├── install.sh           # reproducible base installer
+├── helpers/             # non-interactive configuration adapters
+├── templates/           # agent and project handoff defaults
+├── install.sh           # reproducible engine installer
 ├── mission-control/     # downloaded upstream source; ignored
 ├── runtime/             # downloaded Node, Python and uv; ignored
 ├── home/                # credentials, sessions and agent state; ignored
