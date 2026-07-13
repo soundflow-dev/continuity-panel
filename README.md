@@ -1,14 +1,16 @@
-# Developer Agent OS
+<p align="center">
+  <img src="assets/continuity-panel-logo.svg" alt="ContinuityPanel" width="760">
+</p>
 
 A reproducible, local-first macOS workspace for orchestrating cloud-powered coding agents without coupling project continuity to one provider or chat session.
 
-Developer Agent OS installs [Builderz Labs Mission Control](https://github.com/builderz-labs/mission-control), keeps agent installations isolated inside one folder, and gives every application a durable Git-based handoff file. It is an orchestration environment, not an operating-system distribution.
+ContinuityPanel installs [Builderz Labs Mission Control](https://github.com/builderz-labs/mission-control), keeps agent installations isolated inside one folder, and gives every application a durable Git-based handoff file. It is an orchestration environment, not an operating-system distribution.
 
 > Status: early-stage community project. Mission Control itself is alpha software; back up important projects and review changes before production use.
 
 ## What it provides
 
-- One-click macOS bootstrap through `Install Agentic OS.command`.
+- One-click macOS bootstrap through `Install ContinuityPanel.command`.
 - Pinned, reproducible versions of Mission Control and local runtimes.
 - Optional agent modules; currently Codex and Hermes Agent.
 - Local Mission Control service managed by `launchd`.
@@ -24,13 +26,13 @@ Developer Agent OS installs [Builderz Labs Mission Control](https://github.com/b
 
 ## Install
 
-The recommended location is `~/developer-agent-os`:
+The recommended location is `~/continuity-panel`:
 
 ```bash
 cd ~
-git clone https://github.com/soundflow-dev/developer-agent-os.git
-cd developer-agent-os
-open "Install Agentic OS.command"
+git clone https://github.com/soundflow-dev/continuity-panel.git
+cd continuity-panel
+open "Install ContinuityPanel.command"
 ```
 
 Alternatively, run the same installer in Terminal:
@@ -86,8 +88,8 @@ Commit both files with the application and give each application its own GitHub 
 ## Reinstall after formatting a Mac
 
 1. Install Git/Command Line Tools.
-2. Clone this repository again into `~/developer-agent-os`.
-3. Run `Install Agentic OS.command`.
+2. Clone this repository again into `~/continuity-panel`.
+3. Run `Install ContinuityPanel.command`.
 4. Add the desired agents using `bin/add-agent`.
 5. Authenticate cloud accounts again.
 6. Clone each application repository into `projects/`.
@@ -97,7 +99,7 @@ Downloaded dependencies do not need to be backed up. Mission Control history and
 ## Directory layout
 
 ```text
-developer-agent-os/
+continuity-panel/
 ├── bin/                 # start, stop, agent and project commands
 ├── config/              # launchd service template
 ├── templates/           # Codex, Hermes and project handoff defaults

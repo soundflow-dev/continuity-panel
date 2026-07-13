@@ -1,4 +1,4 @@
-# Agentic OS operating rules
+# ContinuityPanel operating rules
 
 This directory is a local agent orchestration environment. Application work belongs under `projects/`.
 
@@ -11,4 +11,3 @@ For every application project:
 5. Never place credentials, API keys, OAuth tokens, or private user data in project memory files.
 
 Mission Control tracks tasks and sessions; the repository and its state files remain the source of truth for handoff.
-

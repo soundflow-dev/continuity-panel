@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>dev.builderz.mission-control.agentic-os</string>
+  <string>dev.continuitypanel.mission-control</string>
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>

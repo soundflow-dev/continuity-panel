@@ -13,9 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate shell syntax
-        run: bash -n install.sh "Install Agentic OS.command" bin/*
+        run: bash -n install.sh "Install ContinuityPanel.command" bin/*
       - name: Validate launchd template
-        run: plutil -lint config/dev.builderz.mission-control.agentic-os.plist.template
+        run: plutil -lint config/dev.continuitypanel.mission-control.plist.template
       - name: Reject generated or sensitive paths
         run: |
           test ! -e home

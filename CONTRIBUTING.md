@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for helping make Developer Agent OS easier to reproduce and extend.
+Thank you for helping make ContinuityPanel easier to reproduce and extend.
 
 ## Principles
 
@@ -12,10 +12,9 @@ Thank you for helping make Developer Agent OS easier to reproduce and extend.
 
 ## Before submitting a change
 
-1. Run `bash -n install.sh "Install Agentic OS.command" bin/*`.
-2. Run `plutil -lint config/dev.builderz.mission-control.agentic-os.plist.template`.
+1. Run `bash -n install.sh "Install ContinuityPanel.command" bin/*`.
+2. Run `plutil -lint config/dev.continuitypanel.mission-control.plist.template`.
 3. Test both a clean installation and a repeated installation when changing bootstrap code.
 4. Document new commands and security implications in `README.md`.
 
 Use a focused pull request and explain which macOS architecture and version you tested.
-

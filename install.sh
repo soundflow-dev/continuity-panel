@@ -16,7 +16,7 @@ case "$(uname -m)" in
   *) echo "Arquitetura de CPU não suportada." >&2; exit 1 ;;
 esac
 
-echo "A instalar em $ROOT"
+echo "ContinuityPanel — a instalar em $ROOT"
 mkdir -p "$ROOT/runtime" "$ROOT/bin" "$ROOT/config" "$ROOT/home/.codex/skills" \
   "$ROOT/home/.codex/agents" "$ROOT/home/.hermes" "$ROOT/projects" "$ROOT/tools"
 
@@ -63,11 +63,10 @@ pnpm build
 
 ESCAPED_ROOT="$(printf '%s' "$ROOT" | sed 's/[&|\\]/\\&/g')"
 sed "s|__ROOT__|$ESCAPED_ROOT|g" \
-  "$ROOT/config/dev.builderz.mission-control.agentic-os.plist.template" \
-  > "$ROOT/config/dev.builderz.mission-control.agentic-os.plist"
+  "$ROOT/config/dev.continuitypanel.mission-control.plist.template" \
+  > "$ROOT/config/dev.continuitypanel.mission-control.plist"
 
-chmod +x "$ROOT/install.sh" "$ROOT/Install Agentic OS.command" "$ROOT/bin/"*
-echo "Instalação base concluída."
+chmod +x "$ROOT/install.sh" "$ROOT/Install ContinuityPanel.command" "$ROOT/bin/"*
+echo "Instalação base do ContinuityPanel concluída."
 echo "Adicione agentes com: $ROOT/bin/add-agent codex|hermes"
 echo "Arranque com: $ROOT/bin/start"
-

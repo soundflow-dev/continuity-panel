@@ -6,4 +6,4 @@ projects/
 *.log
 *.pid
 .DS_Store
-config/dev.builderz.mission-control.agentic-os.plist
+config/dev.continuitypanel.mission-control.plist

@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/bin/agentic-env"
-LABEL="dev.builderz.mission-control.agentic-os"
+LABEL="dev.continuitypanel.mission-control"
 DOMAIN="gui/$(id -u)"
 PLIST="$ROOT/config/$LABEL.plist"
 
