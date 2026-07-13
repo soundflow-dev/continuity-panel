@@ -20,6 +20,8 @@ jobs:
         run: |
           git clone --depth 1 --branch v2.1.0 https://github.com/builderz-labs/mission-control.git "$RUNNER_TEMP/mission-control"
           git -C "$RUNNER_TEMP/mission-control" apply --check "$GITHUB_WORKSPACE/patches/mission-control-local-runtimes.patch"
+          git -C "$RUNNER_TEMP/mission-control" apply "$GITHUB_WORKSPACE/patches/mission-control-local-runtimes.patch"
+          git -C "$RUNNER_TEMP/mission-control" apply --check "$GITHUB_WORKSPACE/patches/mission-control-local-runtime-status.patch"
       - name: Test native app
         run: swift test
       - name: Package native app
@@ -34,4 +36,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ContinuityPanel-macOS
-          path: dist/ContinuityPanel-0.4.1-macos.zip
+          path: dist/ContinuityPanel-0.4.2-macos.zip
