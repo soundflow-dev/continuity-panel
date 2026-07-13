@@ -62,14 +62,32 @@ final class EnvironmentStore {
         }
     }
 
-    func configureHermes(provider: HermesProvider, model: String, apiKey: String) async -> Bool {
+    func configureHermes(
+        provider: HermesProviderDescriptor,
+        model: String,
+        environment: [String: String]
+    ) async -> Bool {
         var configured = false
-        await perform("Configuring Hermes…", success: "Hermes configured for \(provider.title)") {
-            let result = try await HermesConfigurationService.configure(provider: provider, model: model, apiKey: apiKey)
+        await perform("Configuring Hermes…", success: "Hermes configured for \(provider.label)") {
+            let result = try await HermesConfigurationService.configure(
+                provider: provider,
+                model: model,
+                environment: environment
+            )
             configured = result.succeeded
             return result
         }
         return configured
+    }
+
+    func authenticateHermes(provider: HermesProviderDescriptor) async -> Bool {
+        var authenticated = false
+        await perform("Signing in to \(provider.label)…", success: "Hermes connected to \(provider.label)") {
+            let result = try await HermesConfigurationService.authenticate(provider: provider)
+            authenticated = result.succeeded
+            return result
+        }
+        return authenticated
     }
 
     func connectProvider(_ provider: CloudProvider, apiKey: String) -> Bool {

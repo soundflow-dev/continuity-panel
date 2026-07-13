@@ -81,38 +81,40 @@ enum AgentKind: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-enum HermesProvider: String, CaseIterable, Identifiable, Sendable {
-    case openRouter = "openrouter"
-    case openAI = "openai"
-    case anthropic
-    case zai
+struct HermesProviderField: Codable, Hashable, Identifiable, Sendable {
+    let name: String
+    let label: String
+    let secret: Bool
+    let required: Bool
 
-    var id: Self { self }
+    var id: String { name }
+}
 
-    var title: String {
-        switch self {
-        case .openRouter: "OpenRouter"
-        case .openAI: "OpenAI API"
-        case .anthropic: "Anthropic"
-        case .zai: "Z.AI / GLM"
-        }
+struct HermesProviderDescriptor: Codable, Hashable, Identifiable, Sendable {
+    let slug: String
+    let label: String
+    let description: String
+    let authType: String
+    let tab: String
+    let signupURL: String
+    let fields: [HermesProviderField]
+
+    var id: String { slug }
+
+    var usesAccountLogin: Bool { tab == "accounts" }
+    var supportsBrowserLogin: Bool {
+        ["oauth_device_code", "oauth_external", "oauth_minimax"].contains(authType)
     }
 
-    var keyEnvironment: String {
-        switch self {
-        case .openRouter: "OPENROUTER_API_KEY"
-        case .openAI: "OPENAI_API_KEY"
-        case .anthropic: "ANTHROPIC_API_KEY"
-        case .zai: "ZAI_API_KEY"
-        }
-    }
-
-    var modelExample: String {
-        switch self {
-        case .openRouter: "provider/model-name"
-        case .openAI: "model-name"
-        case .anthropic: "claude-model-name"
-        case .zai: "glm-model-name"
+    var authenticationLabel: String {
+        switch authType {
+        case "oauth_device_code": "Browser sign-in (device code)"
+        case "oauth_external", "oauth_minimax": "Browser sign-in (OAuth)"
+        case "external_process", "copilot": "External account or process"
+        case "aws_sdk": "AWS credential chain"
+        case "vertex": "Google Cloud credentials"
+        case "virtual": "No credentials required"
+        default: "API key"
         }
     }
 }

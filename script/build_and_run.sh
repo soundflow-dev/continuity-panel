@@ -60,7 +60,7 @@ case "$MODE" in
     pgrep -x "$APP_NAME" >/dev/null
     ;;
   --package|package)
-    ARCHIVE="$DIST_DIR/ContinuityPanel-0.2.0-macos.zip"
+    ARCHIVE="$DIST_DIR/ContinuityPanel-0.3.0-macos.zip"
     rm -f "$ARCHIVE"
     /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$APP_BUNDLE" "$ARCHIVE"
     echo "$ARCHIVE"

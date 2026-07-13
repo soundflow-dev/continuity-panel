@@ -15,6 +15,7 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 - One-click graphical installation with no Docker, Homebrew, or remote server.
 - Pinned, reproducible versions of Mission Control and local runtimes.
 - Built-in catalog for Codex, Hermes, Claude Code, Gemini CLI, GitHub Copilot CLI, OpenCode, goose, Aider, Qwen Code, and Kimi Code.
+- Dynamic Hermes provider catalog sourced from the installed Hermes version, including API keys, OAuth accounts, cloud subscriptions, AWS, Vertex AI, local services, and custom endpoints.
 - Separate cloud-provider catalog for OpenAI, Anthropic, OpenRouter, Google, Z.AI/GLM, Mistral, Groq, xAI, DeepSeek, and Moonshot.
 - Local Mission Control service managed by `launchd`.
 - Shared `AGENTS.md` and `PROJECT_STATE.md` protocol for agent handoff.
@@ -30,7 +31,7 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 
 ## Install the app
 
-Download `ContinuityPanel-0.2.0-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
+Download `ContinuityPanel-0.3.0-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
 
 1. Select **Install Environment** in the app.
 2. Create the local Mission Control administrator when the embedded setup appears.

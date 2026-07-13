@@ -11,23 +11,27 @@ def main() -> None:
     payload = json.load(sys.stdin)
     provider = str(payload["provider"]).strip()
     model = str(payload["model"]).strip()
-    key_environment = str(payload["keyEnvironment"]).strip()
-    api_key = str(payload["apiKey"]).strip()
+    environment = payload.get("environment", {})
 
-    if not provider or not model or not key_environment or not api_key:
-        raise ValueError("Provider, model, and API key are required")
+    if not provider or not model:
+        raise ValueError("Provider and model are required")
+    if not isinstance(environment, dict):
+        raise ValueError("Environment must be an object")
 
     config = read_raw_config()
     current_model = config.get("model")
     model_config = dict(current_model) if isinstance(current_model, dict) else {}
     model_config["provider"] = provider
     model_config["default"] = model
-    model_config.pop("base_url", None)
     model_config.pop("api_key", None)
     config["model"] = model_config
 
     save_config(config, strip_defaults=False)
-    save_env_value_secure(key_environment, api_key)
+    for name, value in environment.items():
+        name = str(name).strip()
+        value = str(value).strip()
+        if name and value:
+            save_env_value_secure(name, value)
     print(f"Hermes configured for {provider} with model {model}")
 
 
