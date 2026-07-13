@@ -13,3 +13,7 @@ import Testing
     #expect(AgentKind.allCases.count >= 10)
     #expect(CloudProvider.allCases.count >= 10)
 }
+
+@Test func missionControlIsThePrimarySection() {
+    #expect(AppSection.allCases.first == .missionControl)
+}
