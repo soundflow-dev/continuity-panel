@@ -4,6 +4,7 @@ import SwiftUI
 struct ProjectsView: View {
     let store: EnvironmentStore
     @State private var showingNewProject = false
+    @State private var projectPendingDeletion: ProjectInfo?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -39,6 +40,10 @@ struct ProjectsView: View {
                         }
                         Spacer()
                         Button("Open") { NSWorkspace.shared.open(project.url) }
+                        Button("Delete…", role: .destructive) {
+                            projectPendingDeletion = project
+                        }
+                        .help("Move this local project to Trash")
                     }
                     .padding(.vertical, 4)
                 }
@@ -46,6 +51,24 @@ struct ProjectsView: View {
         }
         .sheet(isPresented: $showingNewProject) {
             NewProjectView(store: store)
+        }
+        .alert(
+            "Move project to Trash?",
+            isPresented: Binding(
+                get: { projectPendingDeletion != nil },
+                set: { if !$0 { projectPendingDeletion = nil } }
+            ),
+            presenting: projectPendingDeletion
+        ) { project in
+            Button("Move to Trash", role: .destructive) {
+                projectPendingDeletion = nil
+                Task { await store.deleteProject(project) }
+            }
+            Button("Cancel", role: .cancel) {
+                projectPendingDeletion = nil
+            }
+        } message: { project in
+            Text("\(project.name) will be removed from Mission Control and moved to the macOS Trash. Any GitHub repository will remain unchanged.")
         }
     }
 }

@@ -39,6 +39,13 @@ jobs:
           CONTINUITYPANEL_ROOT="$ROOT" ./bin/sync-projects
           CONTINUITYPANEL_ROOT="$ROOT" ./bin/sync-projects
           test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT COUNT(*) FROM projects WHERE name='Test_App' AND slug='test-app' AND ticket_prefix='TESTAPP';")" = "1"
+          CONTINUITYPANEL_ROOT="$ROOT" CONTINUITYPANEL_TRASH_DIR="$ROOT/trash" ./bin/delete-project Test_App
+          test ! -d "$ROOT/projects/Test_App"
+          test -d "$ROOT/trash/Test_App"
+          test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT status FROM projects WHERE slug='test-app';")" = "archived"
+          mv "$ROOT/trash/Test_App" "$ROOT/projects/Test_App"
+          CONTINUITYPANEL_ROOT="$ROOT" ./bin/sync-projects
+          test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT status FROM projects WHERE slug='test-app';")" = "active"
       - name: Validate Mission Control integration patch
         run: |
           git clone --depth 1 --branch v2.1.0 https://github.com/builderz-labs/mission-control.git "$RUNNER_TEMP/mission-control"
@@ -61,4 +68,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ContinuityPanel-macOS
-          path: dist/ContinuityPanel-0.4.4-macos.zip
+          path: dist/ContinuityPanel-0.4.5-macos.zip

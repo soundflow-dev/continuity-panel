@@ -31,7 +31,7 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 
 ## Install the app
 
-Download `ContinuityPanel-0.4.4-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
+Download `ContinuityPanel-0.4.5-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
 
 1. Select **Install Environment** in the app.
 2. Create the local Mission Control administrator when the embedded setup appears.
@@ -116,6 +116,8 @@ The command initializes Git, registers the project in Mission Control, and adds:
 
 - `AGENTS.md`: durable rules shared by all coding agents.
 - `PROJECT_STATE.md`: objective, decisions, completed work, verification, risks, and the exact next action.
+
+Projects can be moved safely to the macOS Trash from the app. This archives the corresponding Mission Control project but never removes a GitHub repository.
 
 Commit both files with the application and give each application its own GitHub repository. This is what allows Codex, Hermes, or another agent to resume work without depending on another provider's conversation history.
 
