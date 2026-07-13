@@ -1,0 +1,47 @@
+--- a/src/lib/onboarding-session.ts
++++ b/src/lib/onboarding-session.ts
+@@ -25,10 +25,6 @@
+     return { shouldOpen: true, replayFromStart: false }
+   }
+ 
+-  if (params.completed || params.skipped) {
+-    return { shouldOpen: true, replayFromStart: true }
+-  }
+-
+   return { shouldOpen: false, replayFromStart: false }
+ }
+ 
+--- a/src/lib/__tests__/onboarding-session.test.ts
++++ b/src/lib/__tests__/onboarding-session.test.ts
+@@ -14,7 +14,7 @@
+     ).toEqual({ shouldOpen: true, replayFromStart: false })
+   })
+ 
+-  it('replays onboarding from the start on a fresh session after completion', () => {
++  it('does not reopen onboarding on a fresh session after completion', () => {
+     expect(
+       getOnboardingSessionDecision({
+         isAdmin: true,
+@@ -23,9 +23,21 @@
+         skipped: false,
+         dismissedThisSession: false,
+       })
+-    ).toEqual({ shouldOpen: true, replayFromStart: true })
++    ).toEqual({ shouldOpen: false, replayFromStart: false })
+   })
+ 
++  it('does not reopen onboarding on a fresh session after it was skipped', () => {
++    expect(
++      getOnboardingSessionDecision({
++        isAdmin: true,
++        serverShowOnboarding: false,
++        completed: false,
++        skipped: true,
++        dismissedThisSession: false,
++      })
++    ).toEqual({ shouldOpen: false, replayFromStart: false })
++  })
++
+   it('does not reopen onboarding once dismissed in the current session', () => {
+     expect(
+       getOnboardingSessionDecision({
