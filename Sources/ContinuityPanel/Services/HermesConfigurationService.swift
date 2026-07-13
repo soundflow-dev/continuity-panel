@@ -7,13 +7,22 @@ struct HermesConfigurationPayload: Codable, Sendable {
 }
 
 enum HermesConfigurationService {
+    private static var isolatedEnvironment: [String: String] {
+        let home = AppPaths.root.appendingPathComponent("home", isDirectory: true)
+        return [
+            "HOME": home.path,
+            "HERMES_HOME": home.appendingPathComponent(".hermes", isDirectory: true).path,
+        ]
+    }
+
     static func loadProviders() async throws -> [HermesProviderDescriptor] {
         let python = AppPaths.root.appendingPathComponent("home/.hermes/hermes-agent/venv/bin/python")
         let helper = AppPaths.root.appendingPathComponent("helpers/list_hermes_providers.py")
         let result = try await CommandRunner.run(
             executable: python,
             arguments: [helper.path],
-            currentDirectory: AppPaths.root.appendingPathComponent("home/.hermes/hermes-agent")
+            currentDirectory: AppPaths.root.appendingPathComponent("home/.hermes/hermes-agent"),
+            environment: isolatedEnvironment
         )
         guard result.succeeded else { throw StoreError.commandFailed(result.output) }
         return try JSONDecoder().decode([HermesProviderDescriptor].self, from: Data(result.output.utf8))
@@ -36,7 +45,8 @@ enum HermesConfigurationService {
             executable: python,
             arguments: [helper.path],
             currentDirectory: AppPaths.root.appendingPathComponent("home/.hermes/hermes-agent"),
-            standardInput: input
+            standardInput: input,
+            environment: isolatedEnvironment
         )
     }
 
