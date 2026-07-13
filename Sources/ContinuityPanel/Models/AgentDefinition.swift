@@ -98,6 +98,8 @@ struct HermesProviderDescriptor: Codable, Hashable, Identifiable, Sendable {
     let tab: String
     let signupURL: String
     let fields: [HermesProviderField]
+    let defaultBaseURL: String
+    let models: [String]
 
     var id: String { slug }
 
@@ -117,6 +119,8 @@ struct HermesProviderDescriptor: Codable, Hashable, Identifiable, Sendable {
         default: "API key"
         }
     }
+
+    var hasModelCatalog: Bool { !models.isEmpty }
 }
 
 enum CloudProvider: String, CaseIterable, Identifiable, Sendable {

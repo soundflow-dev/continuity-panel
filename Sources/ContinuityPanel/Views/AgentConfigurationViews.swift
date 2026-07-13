@@ -110,9 +110,28 @@ struct HermesConfigurationView: View {
                         LabeledContent("Hermes provider ID") {
                             Text(provider.slug).font(.body.monospaced()).foregroundStyle(.secondary)
                         }
-                        TextField("Model name", text: $model)
-                            .textFieldStyle(.roundedBorder)
-                        Text("Use the exact model identifier offered by the provider. You can change it later without reinstalling Hermes.")
+                        if !provider.defaultBaseURL.isEmpty {
+                            LabeledContent("Default Base URL") {
+                                Text(provider.defaultBaseURL)
+                                    .font(.caption.monospaced())
+                                    .textSelection(.enabled)
+                            }
+                        }
+                        if provider.hasModelCatalog {
+                            Picker("Model name", selection: $model) {
+                                Text("Choose a model…").tag("")
+                                ForEach(provider.models, id: \.self) { modelID in
+                                    Text(modelID).tag(modelID)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        } else {
+                            TextField("Model name", text: $model)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        Text(provider.hasModelCatalog
+                             ? "Choose one of the models supported by this Hermes provider."
+                             : "Enter the exact model identifier offered by the provider.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
