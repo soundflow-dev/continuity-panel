@@ -31,7 +31,7 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 
 ## Install the app
 
-Download `ContinuityPanel-0.4.2-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
+Download `ContinuityPanel-0.4.3-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
 
 1. Select **Install Environment** in the app.
 2. Create the local Mission Control administrator when the embedded setup appears.
