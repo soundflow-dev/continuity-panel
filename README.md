@@ -41,7 +41,7 @@ Alternatively, run the same installer in Terminal:
 ./install.sh
 ```
 
-The installer downloads Node.js, installs pnpm, checks out Mission Control v2.1.0, builds it, and prepares a user-level macOS service. It does not require Docker or administrator access.
+The installer downloads Node.js, installs pnpm, checks out Mission Control v2.1.0, builds it, and registers a user-level macOS service. Mission Control starts immediately and is started automatically whenever you log in to macOS. It does not require Docker or administrator access.
 
 ## Add agents
 
@@ -61,13 +61,17 @@ Then authenticate or select cloud providers:
 
 Credentials and sessions live under the ignored `home/` directory. They are never part of the installer repository. Adding a future agent should be implemented as another isolated case in `bin/add-agent` plus a small launcher in `bin/`.
 
-## Start Mission Control
+## Mission Control service
+
+After installation, Mission Control runs automatically at login. You do not need to run a start command after restarting the Mac.
 
 ```bash
 ./bin/start
 ./bin/status
 ./bin/stop
 ```
+
+Use `start` to restart it manually, `status` to check it, and `stop` to stop it for the current login session. Because automatic startup remains enabled, a service stopped manually will run again the next time you log in. Keep the ContinuityPanel folder in the same location after installation because the registered service uses its absolute path.
 
 Open <http://127.0.0.1:3000/setup> on first use and create the local administrator account.
 

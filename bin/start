@@ -2,12 +2,18 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$ROOT/bin/agentic-env"
 LABEL="dev.continuitypanel.mission-control"
 DOMAIN="gui/$(id -u)"
-PLIST="$ROOT/config/$LABEL.plist"
+USER_RECORD="/${CONTINUITYPANEL_USER_RECORD_KIND:-Users}/$(id -un)"
+MACOS_USER_HOME="$(/usr/bin/dscl . -read "$USER_RECORD" NFSHomeDirectory | /usr/bin/sed -E 's/^[^:]+:[[:space:]]*//')"
+PLIST="$MACOS_USER_HOME/Library/LaunchAgents/$LABEL.plist"
+source "$ROOT/bin/agentic-env"
 
 mkdir -p "$MISSION_CONTROL_DATA_DIR"
+if [[ ! -f "$PLIST" ]]; then
+  "$ROOT/bin/install-service"
+fi
+
 if launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1; then
   launchctl kickstart -k "$DOMAIN/$LABEL"
 else

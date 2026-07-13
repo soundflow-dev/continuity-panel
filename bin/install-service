@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LABEL="dev.continuitypanel.mission-control"
+DOMAIN="gui/$(id -u)"
+USER_RECORD="/${CONTINUITYPANEL_USER_RECORD_KIND:-Users}/$(id -un)"
+MACOS_USER_HOME="$(/usr/bin/dscl . -read "$USER_RECORD" NFSHomeDirectory | /usr/bin/sed -E 's/^[^:]+:[[:space:]]*//')"
+LAUNCH_AGENTS_DIR="$MACOS_USER_HOME/Library/LaunchAgents"
+GENERATED_PLIST="$ROOT/config/$LABEL.plist"
+INSTALLED_PLIST="$LAUNCH_AGENTS_DIR/$LABEL.plist"
+
+mkdir -p "$LAUNCH_AGENTS_DIR" "$ROOT/mission-control/.data"
+
+ESCAPED_ROOT="$(printf '%s' "$ROOT" | sed 's/[&|\\]/\\&/g')"
+sed "s|__ROOT__|$ESCAPED_ROOT|g" \
+  "$ROOT/config/$LABEL.plist.template" \
+  > "$GENERATED_PLIST"
+
+/usr/bin/plutil -lint "$GENERATED_PLIST" >/dev/null
+cp "$GENERATED_PLIST" "$INSTALLED_PLIST"
+chmod 644 "$INSTALLED_PLIST"
+
+# Re-register from the standard LaunchAgents location so this installation is
+# also the active registration for the current login session.
+if launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1; then
+  launchctl bootout "$DOMAIN/$LABEL"
+fi
+
+# launchd can briefly retain the old label after bootout. Retry the registration
+# instead of leaving the service unloaded when an installer is rerun.
+registered=false
+for _ in {1..20}; do
+  if launchctl bootstrap "$DOMAIN" "$INSTALLED_PLIST" 2>/dev/null; then
+    registered=true
+    break
+  fi
+  sleep 0.25
+done
+
+if [[ "$registered" != true ]]; then
+  echo "Could not register Mission Control with launchd." >&2
+  exit 1
+fi
+
+echo "Mission Control registered for automatic startup at login."

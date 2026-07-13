@@ -61,12 +61,9 @@ pnpm install --frozen-lockfile
 pnpm rebuild better-sqlite3 node-pty
 pnpm build
 
-ESCAPED_ROOT="$(printf '%s' "$ROOT" | sed 's/[&|\\]/\\&/g')"
-sed "s|__ROOT__|$ESCAPED_ROOT|g" \
-  "$ROOT/config/dev.continuitypanel.mission-control.plist.template" \
-  > "$ROOT/config/dev.continuitypanel.mission-control.plist"
-
 chmod +x "$ROOT/install.sh" "$ROOT/Install ContinuityPanel.command" "$ROOT/bin/"*
+"$ROOT/bin/install-service"
+
 echo "Instalação base do ContinuityPanel concluída."
 echo "Adicione agentes com: $ROOT/bin/add-agent codex|hermes"
-echo "Arranque com: $ROOT/bin/start"
+echo "Mission Control: http://127.0.0.1:3000"
