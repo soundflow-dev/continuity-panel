@@ -17,3 +17,17 @@ import Testing
 @Test func missionControlIsThePrimarySection() {
     #expect(AppSection.allCases.first == .missionControl)
 }
+
+@Test func hermesProviderDescriptorClassifiesAccountLogin() {
+    let provider = HermesProviderDescriptor(
+        slug: "openai-codex",
+        label: "OpenAI Codex",
+        description: "Codex OAuth",
+        authType: "oauth_external",
+        tab: "accounts",
+        signupURL: "",
+        fields: []
+    )
+    #expect(provider.usesAccountLogin)
+    #expect(provider.authenticationLabel.contains("OAuth"))
+}
