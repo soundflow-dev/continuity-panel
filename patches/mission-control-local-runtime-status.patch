@@ -1,0 +1,182 @@
+--- a/src/app/api/agents/route.ts
++++ b/src/app/api/agents/route.ts
+@@ -226,6 +226,10 @@
+         delete finalConfig.dispatchModel;
+       }
+     }
++
++    const storedStatus = runtime_type === 'codex' || runtime_type === 'hermes'
++      ? 'idle'
++      : status;
+ 
+     if (!name || !finalRole) {
+       return NextResponse.json({ error: 'Name and role are required' }, { status: 400 });
+@@ -279,7 +283,7 @@
+       finalRole,
+       session_key,
+       soul_content,
+-      status,
++      storedStatus,
+       now,
+       now,
+       JSON.stringify(finalConfig),
+--- a/src/components/panels/agent-detail-tabs.tsx
++++ b/src/components/panels/agent-detail-tabs.tsx
+@@ -971,6 +971,7 @@
+             session_key: formData.session_key || undefined,
+             template: selectedTemplate || undefined,
+             runtime_type: formData.runtimeType,
++            status: 'idle',
+             write_to_gateway: false,
+             provision_openclaw_workspace: false,
+             config: formData.runtimeType === 'codex'
+--- a/src/components/panels/agent-squad-panel-phase3.tsx
++++ b/src/components/panels/agent-squad-panel-phase3.tsx
+@@ -358,9 +358,14 @@
+ 
+   // Get status distribution for summary
+   const statusCounts = agents.reduce((acc, agent) => {
+-    acc[agent.status] = (acc[agent.status] || 0) + 1
++    const isLocalRuntime = ['codex', 'hermes'].includes(String((agent as any).runtime_type || ''))
++    const status = isLocalRuntime && agent.status === 'offline' ? 'idle' : agent.status
++    acc[status] = (acc[status] || 0) + 1
+     return acc
+   }, {} as Record<string, number>)
++  const localReadyCount = agents.filter(agent =>
++    ['codex', 'hermes'].includes(String((agent as any).runtime_type || ''))
++  ).length
+ 
+   if (loading && agents.length === 0) {
+     return <Loader variant="panel" label="Loading agents" />
+@@ -387,6 +392,7 @@
+           <div className="flex items-center gap-1">
+             <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
+             <span className="text-sm text-muted-foreground">
++              {localReadyCount > 0 && `${localReadyCount} local ready · `}
+               {t('activeHeartbeats', { count: agents.filter(hasRecentHeartbeat).length })}
+             </span>
+           </div>
+@@ -481,6 +487,9 @@
+             {agents.map(agent => {
+               const modelName = formatModelName(agent.config)
+               const taskStatsLine = buildTaskStatParts(agent.taskStats)
++              const isLocalRuntime = ['codex', 'hermes'].includes(String((agent as any).runtime_type || ''))
++              const effectiveStatus = isLocalRuntime && agent.status === 'offline' ? 'idle' : agent.status
++              const statusLabel = isLocalRuntime && effectiveStatus === 'idle' ? 'Ready' : effectiveStatus
+ 
+               return (
+                 <div
+@@ -488,7 +497,7 @@
+                   className="group relative overflow-hidden rounded-xl border border-border/70 bg-card p-4 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-border hover:shadow-lg cursor-pointer"
+                   onClick={() => setSelectedAgent(agent)}
+                 >
+-                  <div className={`pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b ${(statusCardStyles[agent.status] || defaultCardStyle).edge}`} />
++                  <div className={`pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b ${(statusCardStyles[effectiveStatus] || defaultCardStyle).edge}`} />
+                   {agent.hidden ? <div className="absolute top-2 right-2 text-2xs text-slate-500">hidden</div> : null}
+ 
+                   {/* Header: avatar + name + status */}
+@@ -520,9 +529,9 @@
+                       {hasRecentHeartbeat(agent) && (
+                         <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" title="Recent heartbeat" />
+                       )}
+-                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs capitalize ${statusBadgeStyles[agent.status]}`}>
+-                        <span className={`h-1.5 w-1.5 rounded-full ${(statusCardStyles[agent.status] || defaultCardStyle).dot}`} />
+-                        {agent.status}
++                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs capitalize ${statusBadgeStyles[effectiveStatus]}`}>
++                        <span className={`h-1.5 w-1.5 rounded-full ${(statusCardStyles[effectiveStatus] || defaultCardStyle).dot}`} />
++                        {statusLabel}
+                       </span>
+                     </div>
+                   </div>
+@@ -543,10 +552,12 @@
+                   {/* Footer: last seen + actions */}
+                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/30">
+                     <span className="text-[11px] text-muted-foreground/70">
+-                      {formatLastSeen(agent.last_seen)}
++                      {isLocalRuntime ? 'Runs on demand' : formatLastSeen(agent.last_seen)}
+                     </span>
+                     <div className="flex gap-1">
+-                      {agent.session_key ? (
++                      {isLocalRuntime ? (
++                        <span className="px-2 text-[11px] text-emerald-300">Ready for tasks</span>
++                      ) : agent.session_key ? (
+                         <Button
+                           onClick={(e) => {
+                             e.stopPropagation()
+--- a/src/lib/scheduler.ts
++++ b/src/lib/scheduler.ts
+@@ -183,6 +183,7 @@
+     const staleAgents = db.prepare(`
+       SELECT id, name, status, last_seen FROM agents
+       WHERE status != 'offline' AND (last_seen IS NULL OR last_seen < ?)
++        AND (runtime_type IS NULL OR runtime_type NOT IN ('codex', 'hermes'))
+     `).all(threshold) as Array<{ id: number; name: string; status: string; last_seen: number | null }>
+ 
+     if (staleAgents.length === 0) {
+--- a/src/lib/task-dispatch.ts
++++ b/src/lib/task-dispatch.ts
+@@ -1263,14 +1263,15 @@
+ 
+   const staleTasks = db.prepare(`
+     SELECT t.id, t.title, t.assigned_to, t.dispatch_attempts, t.workspace_id,
+-           a.status as agent_status, a.last_seen as agent_last_seen
++           a.status as agent_status, a.last_seen as agent_last_seen,
++           a.runtime_type as agent_runtime_type
+     FROM tasks t
+     LEFT JOIN agents a ON a.name = t.assigned_to AND a.workspace_id = t.workspace_id
+     WHERE t.status = 'in_progress'
+       AND t.updated_at < ?
+   `).all(staleThreshold) as Array<{
+     id: number; title: string; assigned_to: string | null; dispatch_attempts: number
+-    workspace_id: number; agent_status: string | null; agent_last_seen: number | null
++    workspace_id: number; agent_status: string | null; agent_last_seen: number | null; agent_runtime_type: string | null
+   }>
+ 
+   if (staleTasks.length === 0) {
+@@ -1288,7 +1289,7 @@
+   const directApiSkipsStaleCheck = !isGatewayAvailable() && isDirectDispatchAvailable()
+ 
+   for (const task of staleTasks) {
+-    if (directApiSkipsStaleCheck) continue
++    if (directApiSkipsStaleCheck || task.agent_runtime_type === 'codex' || task.agent_runtime_type === 'hermes') continue
+     // Only requeue if the agent is offline or unknown
+     const agentOffline = !task.agent_status || task.agent_status === 'offline'
+     if (!agentOffline) continue
+@@ -1712,14 +1713,15 @@
+ }
+ 
+ function scoreAgentForTask(
+-  agent: { name: string; role: string; status: string; config: string | null },
++  agent: { name: string; role: string; status: string; config: string | null; runtime_type?: string | null },
+   taskText: string,
+ ): number {
+   // Offline agents can't take work — unless we're in direct-API mode where
+   // the agent has no heartbeat by design and the dispatcher invokes the
+   // provider HTTP API directly (no live agent process required).
+   const directApiOk = !isGatewayAvailable() && isDirectDispatchAvailable()
+-  if (!directApiOk && (agent.status === 'offline' || agent.status === 'error' || agent.status === 'sleeping')) return -1
++  const localRuntime = agent.runtime_type === 'codex' || agent.runtime_type === 'hermes'
++  if (!localRuntime && !directApiOk && (agent.status === 'offline' || agent.status === 'error' || agent.status === 'sleeping')) return -1
+ 
+   const text = taskText.toLowerCase()
+   const keywords = ROLE_AFFINITY[agent.role] || []
+@@ -1769,13 +1771,15 @@
+     return { ok: true, message: 'No inbox tasks to route' }
+   }
+ 
+-  // Get all non-hidden, non-offline agents
++  // Local Codex/Hermes agents run on demand and do not emit heartbeats, so
++  // they remain routable even if an older record still says "offline".
+   const agents = db.prepare(`
+-    SELECT id, name, role, status, config
++    SELECT id, name, role, status, config, runtime_type
+     FROM agents
+-    WHERE hidden = 0 AND status NOT IN ('offline', 'error')
++    WHERE hidden = 0
++      AND (status NOT IN ('offline', 'error') OR runtime_type IN ('codex', 'hermes'))
+     LIMIT 50
+-  `).all() as Array<{ id: number; name: string; role: string; status: string; config: string | null }>
++  `).all() as Array<{ id: number; name: string; role: string; status: string; config: string | null; runtime_type: string | null }>
+ 
+   if (agents.length === 0) {
+     return { ok: true, message: `${inboxTasks.length} inbox task(s) but no available agents` }
