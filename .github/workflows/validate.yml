@@ -16,6 +16,10 @@ jobs:
         run: bash -n install.sh "Install ContinuityPanel.command" bin/*
       - name: Validate launchd template
         run: plutil -lint config/dev.continuitypanel.mission-control.plist.template
+      - name: Validate Mission Control integration patch
+        run: |
+          git clone --depth 1 --branch v2.1.0 https://github.com/builderz-labs/mission-control.git "$RUNNER_TEMP/mission-control"
+          git -C "$RUNNER_TEMP/mission-control" apply --check "$GITHUB_WORKSPACE/patches/mission-control-local-runtimes.patch"
       - name: Test native app
         run: swift test
       - name: Package native app
@@ -30,4 +34,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ContinuityPanel-macOS
-          path: dist/ContinuityPanel-0.1.0-macos.zip
+          path: dist/ContinuityPanel-0.4.0-macos.zip

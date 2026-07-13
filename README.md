@@ -31,7 +31,7 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 
 ## Install the app
 
-Download `ContinuityPanel-0.3.2-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
+Download `ContinuityPanel-0.4.0-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
 
 1. Select **Install Environment** in the app.
 2. Create the local Mission Control administrator when the embedded setup appears.
@@ -79,6 +79,17 @@ The graphical interface handles agent installation, Codex browser login, Hermes 
 ```
 
 Agent credentials and sessions live in the isolated Application Support environment. Reusable cloud API keys are stored in the macOS Keychain. They are never part of this repository. Adding a future agent means extending the declarative app catalog and its isolated installer adapter.
+
+### Create local Mission Control agents
+
+After installing and authenticating a runtime, open **Mission Control → Agents → Add Agent**:
+
+1. Choose a role template such as **Developer**.
+2. Select **Codex CLI** or **Hermes Agent** as the runtime.
+3. Give the agent a name and keep workspace access on read/write for development work.
+4. Review and create it. Local Codex/Hermes agents do not require an OpenClaw gateway.
+
+Assigned tasks run through the selected CLI. Codex uses its existing ChatGPT/OpenAI login; Hermes uses the provider and model selected in ContinuityPanel. When a task belongs to a Mission Control project whose name or slug matches a folder under `projects/`, execution uses that project as its working directory.
 
 ## Mission Control service
 
@@ -129,6 +140,7 @@ continuity-panel/
 ├── bin/                 # isolated service, agent, and project engine
 ├── config/              # launchd service template
 ├── helpers/             # non-interactive configuration adapters
+├── patches/             # pinned Mission Control interoperability patches
 ├── templates/           # agent and project handoff defaults
 ├── install.sh           # reproducible engine installer
 ├── mission-control/     # downloaded upstream source; ignored

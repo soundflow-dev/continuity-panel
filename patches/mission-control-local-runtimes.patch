@@ -1,0 +1,286 @@
+diff --git a/src/app/api/agents/route.ts b/src/app/api/agents/route.ts
+--- a/src/app/api/agents/route.ts
++++ b/src/app/api/agents/route.ts
+@@ -212,6 +212,21 @@ export async function POST(request: NextRequest) {
+       finalConfig = { ...finalConfig, ...(gateway_config as Record<string, any>) };
+     }
+ 
++    // Codex and Hermes are local ContinuityPanel runtimes, not OpenClaw
++    // model aliases. Keep the useful role/tool template metadata while
++    // removing the template's Claude model and recording an explicit local
++    // dispatch route.
++    if (runtime_type === 'codex' || runtime_type === 'hermes') {
++      delete finalConfig.model;
++      delete finalConfig.models;
++      finalConfig.dispatchRuntime = runtime_type;
++      if (runtime_type === 'codex') {
++        finalConfig.dispatchModel = 'openai/codex';
++      } else {
++        delete finalConfig.dispatchModel;
++      }
++    }
++
+     if (!name || !finalRole) {
+       return NextResponse.json({ error: 'Name and role are required' }, { status: 400 });
+     }
+@@ -274,8 +289,9 @@ export async function POST(request: NextRequest) {
+ 
+     const agentId = dbResult.lastInsertRowid as number;
+ 
+-    // Provision Hermes profile directory if runtime_type is hermes
+-    if (runtime_type === 'hermes') {
++    // A separate Hermes profile is opt-in. ContinuityPanel agents normally
++    // share the provider/model configured in its isolated Hermes home.
++    if (runtime_type === 'hermes' && finalConfig.provisionHermesProfile === true) {
+       try {
+         const { mkdirSync, writeFileSync, existsSync: fsExists } = require('node:fs')
+         const profileDir = path.join(appConfig.homeDir, '.hermes', 'profiles', name)
+diff --git a/src/components/panels/agent-detail-tabs.tsx b/src/components/panels/agent-detail-tabs.tsx
+--- a/src/components/panels/agent-detail-tabs.tsx
++++ b/src/components/panels/agent-detail-tabs.tsx
+@@ -871,8 +871,9 @@ export function CreateAgentModal({
+     sandboxMode: 'all' as 'all' | 'non-main',
+     dockerNetwork: 'none' as 'none' | 'bridge',
+     session_key: '',
+-    write_to_gateway: true,
+-    provision_openclaw_workspace: true,
++    runtimeType: 'codex' as 'codex' | 'hermes',
++    write_to_gateway: false,
++    provision_openclaw_workspace: false,
+   })
+   const [isCreating, setIsCreating] = useState(false)
+   const [error, setError] = useState<string | null>(null)
+@@ -969,8 +970,12 @@ export function CreateAgentModal({
+             role: formData.role,
+             session_key: formData.session_key || undefined,
+             template: selectedTemplate || undefined,
+-            write_to_gateway: formData.write_to_gateway,
+-            provision_openclaw_workspace: formData.provision_openclaw_workspace,
++            runtime_type: formData.runtimeType,
++            write_to_gateway: false,
++            provision_openclaw_workspace: false,
++            config: formData.runtimeType === 'codex'
++              ? { dispatchRuntime: 'codex', dispatchModel: 'openai/codex' }
++              : { dispatchRuntime: 'hermes' },
+             gateway_config: {
+               model: { primary: primaryModel },
+               identity: { name: formData.name, theme: formData.role, emoji: formData.emoji },
+@@ -1109,6 +1114,26 @@ export function CreateAgentModal({
+           {/* Step 2: Configure */}
+           {step === 2 && (
+             <div className="space-y-4">
++              <div>
++                <label className="block text-sm text-muted-foreground mb-2">Agent runtime</label>
++                <div className="grid grid-cols-2 gap-3">
++                  <Button
++                    onClick={() => setFormData(prev => ({ ...prev, runtimeType: 'codex' }))}
++                    variant="outline"
++                    className={`h-auto p-3 justify-start ${formData.runtimeType === 'codex' ? 'border-primary bg-primary/5' : ''}`}
++                  >
++                    <span className="text-left"><strong>Codex CLI</strong><br /><span className="text-xs text-muted-foreground">Uses your OpenAI/ChatGPT sign-in</span></span>
++                  </Button>
++                  <Button
++                    onClick={() => setFormData(prev => ({ ...prev, runtimeType: 'hermes' }))}
++                    variant="outline"
++                    className={`h-auto p-3 justify-start ${formData.runtimeType === 'hermes' ? 'border-primary bg-primary/5' : ''}`}
++                  >
++                    <span className="text-left"><strong>Hermes Agent</strong><br /><span className="text-xs text-muted-foreground">Uses the provider and model configured in ContinuityPanel</span></span>
++                  </Button>
++                </div>
++              </div>
++
+               <div className="grid grid-cols-2 gap-4">
+                 <div>
+                   <label className="block text-sm text-muted-foreground mb-1">{t('displayName')}</label>
+@@ -1156,7 +1181,7 @@ export function CreateAgentModal({
+                 </div>
+               </div>
+ 
+-              <div>
++              <div className="hidden">
+                 <label className="block text-sm text-muted-foreground mb-1">{t('modelTier')}</label>
+                 <div className="flex gap-2">
+                   {(['opus', 'sonnet', 'haiku'] as const).map(tier => (
+@@ -1178,7 +1203,7 @@ export function CreateAgentModal({
+                 </div>
+               </div>
+ 
+-              <div>
++              <div className="hidden">
+                 <label className="block text-sm text-muted-foreground mb-1">{t('primaryModel')}</label>
+                 <input
+                   type="text"
+@@ -1195,7 +1220,7 @@ export function CreateAgentModal({
+                 </datalist>
+               </div>
+ 
+-              <div className="grid grid-cols-3 gap-4">
++              <div className="grid grid-cols-2 gap-4">
+                 <div>
+                   <label className="block text-sm text-muted-foreground mb-1">{t('workspace')}</label>
+                   <select
+@@ -1219,7 +1244,7 @@ export function CreateAgentModal({
+                     <option value="non-main">{t('sandboxNonMain')}</option>
+                   </select>
+                 </div>
+-                <div>
++                <div className="hidden">
+                   <label className="block text-sm text-muted-foreground mb-1">{t('network')}</label>
+                   <select
+                     value={formData.dockerNetwork}
+@@ -1300,37 +1325,20 @@ export function CreateAgentModal({
+                     <div className="grid grid-cols-2 gap-2 text-sm">
+                       <div><span className="text-muted-foreground">{t('idLabel')}:</span> <span className="text-foreground font-mono">{formData.id}</span></div>
+                       <div><span className="text-muted-foreground">{t('templateLabel')}:</span> <span className="text-foreground">{selectedTemplateData?.label || t('custom')}</span></div>
+-                      <div><span className="text-muted-foreground">{t('model')}:</span> <span className={`px-2 py-0.5 rounded text-xs ${MODEL_TIER_COLORS[formData.modelTier]}`}>{MODEL_TIER_LABELS[formData.modelTier]}</span></div>
++                      <div><span className="text-muted-foreground">Runtime:</span> <span className="text-foreground">{formData.runtimeType === 'codex' ? 'Codex CLI' : 'Hermes Agent'}</span></div>
+                       <div><span className="text-muted-foreground">{t('toolsLabel')}:</span> <span className="text-foreground">{selectedTemplateData?.toolCount || t('custom')}</span></div>
+-                      <div className="col-span-2"><span className="text-muted-foreground">{t('primaryModel')}:</span> <span className="text-foreground font-mono">{formData.modelPrimary || DEFAULT_MODEL_BY_TIER[formData.modelTier]}</span></div>
++                      <div className="col-span-2"><span className="text-muted-foreground">Model:</span> <span className="text-foreground">{formData.runtimeType === 'codex' ? 'Codex account default' : 'ContinuityPanel Hermes configuration'}</span></div>
+                       <div><span className="text-muted-foreground">{t('workspace')}:</span> <span className="text-foreground">{formData.workspaceAccess}</span></div>
+                       <div><span className="text-muted-foreground">{t('sandbox')}:</span> <span className="text-foreground">{formData.sandboxMode}</span></div>
+-                      <div><span className="text-muted-foreground">{t('network')}:</span> <span className="text-foreground">{formData.dockerNetwork}</span></div>
+                       {formData.session_key && (
+                         <div><span className="text-muted-foreground">{t('session')}:</span> <span className="text-foreground font-mono">{formData.session_key}</span></div>
+                       )}
+                     </div>
+                   </div>
+ 
+-                  <label className="flex items-center gap-2 cursor-pointer">
+-                    <input
+-                      type="checkbox"
+-                      checked={formData.write_to_gateway}
+-                      onChange={(e) => setFormData(prev => ({ ...prev, write_to_gateway: e.target.checked }))}
+-                      className="w-4 h-4 rounded border-border"
+-                    />
+-                    <span className="text-sm text-foreground">{t('addToGateway')}</span>
+-                  </label>
+-
+-                  <label className="flex items-center gap-2 cursor-pointer">
+-                    <input
+-                      type="checkbox"
+-                      checked={formData.provision_openclaw_workspace}
+-                      onChange={(e) => setFormData(prev => ({ ...prev, provision_openclaw_workspace: e.target.checked }))}
+-                      className="w-4 h-4 rounded border-border"
+-                    />
+-                    <span className="text-sm text-foreground">{t('provisionWorkspace')}</span>
+-                  </label>
++                  <p className="text-xs text-muted-foreground">
++                    This local agent does not require an OpenClaw gateway or a separate model configuration.
++                  </p>
+                 </>
+               )}
+             </div>
+diff --git a/src/lib/task-dispatch.ts b/src/lib/task-dispatch.ts
+--- a/src/lib/task-dispatch.ts
++++ b/src/lib/task-dispatch.ts
+@@ -37,12 +37,33 @@ interface DispatchableTask {
+   agent_name: string
+   agent_id: number
+   agent_config: string | null
++  agent_runtime_type?: string | null
++  project_name?: string | null
++  project_slug?: string | null
+   ticket_prefix: string | null
+   project_ticket_no: number | null
+   project_id: number | null
+   tags?: string[]
+ }
+ 
++function resolveTaskWorkingDirectory(task: DispatchableTask): string | undefined {
++  const root = (process.env.MC_WORKSPACE_ROOT || '').trim()
++  if (!root) return undefined
++
++  const path = require('node:path')
++  const resolvedRoot = path.resolve(root)
++  const candidates = [task.project_name, task.project_slug]
++    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
++
++  for (const candidate of candidates) {
++    const resolved = path.resolve(resolvedRoot, candidate)
++    if (resolved !== resolvedRoot && resolved.startsWith(`${resolvedRoot}${path.sep}`) && existsSync(resolved)) {
++      return resolved
++    }
++  }
++  return existsSync(resolvedRoot) ? resolvedRoot : undefined
++}
++
+ // ---------------------------------------------------------------------------
+ // Model routing
+ // ---------------------------------------------------------------------------
+@@ -898,6 +919,7 @@ async function callCodexViaCli(
+     const proc = spawn('codex', args, {
+       stdio: ['pipe', 'pipe', 'pipe'],
+       env: { ...process.env },
++      cwd: resolveTaskWorkingDirectory(task),
+     })
+     let stdout = ''
+     let stderr = ''
+@@ -926,6 +948,44 @@ async function callCodexViaCli(
+   })
+ }
+ 
++/** Dispatch through the isolated Hermes CLI configured by ContinuityPanel. */
++async function callHermesViaCli(
++  task: DispatchableTask,
++  prompt: string,
++): Promise<AgentResponseParsed> {
++  const soul = getAgentSoulContent(task)
++  const fullPrompt = soul ? `${soul}\n\n---\n\n${prompt}` : prompt
++
++  logger.info({ taskId: task.id, agent: task.agent_name }, 'Dispatching task via Hermes CLI')
++
++  return await new Promise<AgentResponseParsed>((resolve, reject) => {
++    const proc = spawn('hermes', ['--oneshot', fullPrompt], {
++      stdio: ['ignore', 'pipe', 'pipe'],
++      env: { ...process.env, CI: '1' },
++      cwd: resolveTaskWorkingDirectory(task),
++    })
++    let stdout = ''
++    let stderr = ''
++    const timeoutMs = 600_000
++    const timer = setTimeout(() => {
++      proc.kill('SIGTERM')
++      reject(new Error(`Hermes CLI timed out after ${timeoutMs / 1000}s`))
++    }, timeoutMs)
++
++    proc.stdout.on('data', (d) => { stdout += d.toString() })
++    proc.stderr.on('data', (d) => { stderr += d.toString() })
++    proc.on('error', (err) => { clearTimeout(timer); reject(err) })
++    proc.on('close', (code) => {
++      clearTimeout(timer)
++      const text = stdout.trim()
++      if (code !== 0 && !text) {
++        return reject(new Error(`Hermes CLI exited ${code}: ${stderr.slice(0, 500)}`))
++      }
++      resolve({ text: text || null, sessionId: null })
++    })
++  })
++}
++
+ async function callLocalDirectly(task: DispatchableTask, prompt: string, model: string): Promise<AgentResponseParsed> {
+   const endpoint = getLocalEndpoint()
+   if (!endpoint) throw new Error('LOCAL_LLM_ENDPOINT not set — cannot dispatch to local model')
+@@ -1286,7 +1346,8 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
+ 
+   const tasks = db.prepare(`
+     SELECT t.*, a.name as agent_name, a.id as agent_id, a.config as agent_config,
+-           p.ticket_prefix, t.project_ticket_no
++           a.runtime_type as agent_runtime_type, p.name as project_name,
++           p.slug as project_slug, p.ticket_prefix, t.project_ticket_no
+     FROM tasks t
+     JOIN agents a ON a.name = t.assigned_to AND a.workspace_id = t.workspace_id
+     LEFT JOIN projects p ON p.id = t.project_id AND p.workspace_id = t.workspace_id
+@@ -1368,7 +1429,11 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
+       let agentResponse: AgentResponseParsed
+       const useDirectApi = !isGatewayAvailable() && isDirectDispatchAvailable()
+ 
+-      if (useDirectApi && !targetSession) {
++      if (!targetSession && task.agent_runtime_type === 'codex') {
++        agentResponse = await callCodexViaCli(task, prompt, '')
++      } else if (!targetSession && task.agent_runtime_type === 'hermes') {
++        agentResponse = await callHermesViaCli(task, prompt)
++      } else if (useDirectApi && !targetSession) {
+         // Direct API dispatch — provider chosen by `dispatchModel` prefix
+         // (Anthropic / OpenAI / OpenAI-compatible local). No gateway needed.
+         agentResponse = await callDirectly(task, prompt)
