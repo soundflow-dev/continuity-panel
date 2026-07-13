@@ -33,6 +33,10 @@ for target in "$PROJECTS_DIR"/*; do
   slug="$(printf '%s' "$name" | tr '[:upper:]_' '[:lower:]-')"
   existing="$(sqlite3 "$DB" "SELECT id FROM projects WHERE workspace_id=1 AND slug='$slug' LIMIT 1;")"
   if [[ -n "$existing" ]]; then
+    sqlite3 "$DB" "
+      UPDATE projects SET status='active', updated_at=unixepoch()
+      WHERE id=$existing AND status!='active';
+    " >/dev/null
     continue
   fi
 

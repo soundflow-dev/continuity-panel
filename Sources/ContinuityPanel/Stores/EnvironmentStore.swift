@@ -132,6 +132,25 @@ final class EnvironmentStore {
         return created
     }
 
+    func deleteProject(_ project: ProjectInfo) async -> Bool {
+        let projectsRoot = AppPaths.projects.standardizedFileURL
+        let projectURL = project.url.standardizedFileURL
+        guard projectURL.deletingLastPathComponent() == projectsRoot,
+              ProjectName.isValid(project.name) else {
+            lastError = "The selected project is outside the ContinuityPanel projects folder."
+            return false
+        }
+
+        var deleted = false
+        await perform("Moving \(project.name) to Trash…", success: "Project \(project.name) moved to Trash") {
+            try EngineInstaller.synchronizeBundledEngine()
+            let result = try await self.runScript("bin/delete-project", arguments: [project.name])
+            deleted = result.succeeded
+            return result
+        }
+        return deleted
+    }
+
     func revealProjects() {
         try? FileManager.default.createDirectory(at: AppPaths.projects, withIntermediateDirectories: true)
         NSWorkspace.shared.activateFileViewerSelecting([AppPaths.projects])

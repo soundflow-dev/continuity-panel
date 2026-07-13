@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${CONTINUITYPANEL_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+TRASH_DIR="${CONTINUITYPANEL_TRASH_DIR:-$HOME/.Trash}"
+NAME="${1:-}"
+
+if [[ ! "$NAME" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]]; then
+  echo "Usage: $0 project-name" >&2
+  exit 2
+fi
+
+TARGET="$ROOT/projects/$NAME"
+if [[ ! -d "$TARGET" ]]; then
+  echo "Project does not exist: $TARGET" >&2
+  exit 1
+fi
+
+DB="$ROOT/mission-control/.data/mission-control.db"
+slug="$(printf '%s' "$NAME" | tr '[:upper:]_' '[:lower:]-')"
+archived=false
+
+if [[ -f "$DB" ]] && [[ "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='projects';")" == "1" ]]; then
+  sqlite3 "$DB" "
+    PRAGMA busy_timeout=5000;
+    UPDATE projects SET status='archived', updated_at=unixepoch()
+    WHERE workspace_id=1 AND slug='$slug';
+  " >/dev/null
+  archived=true
+fi
+
+mkdir -p "$TRASH_DIR"
+destination="$TRASH_DIR/$NAME"
+if [[ -e "$destination" ]]; then
+  destination="$TRASH_DIR/${NAME}-$(date +%Y%m%d-%H%M%S)"
+fi
+
+if ! mv "$TARGET" "$destination"; then
+  if [[ "$archived" == true ]]; then
+    sqlite3 "$DB" "UPDATE projects SET status='active', updated_at=unixepoch() WHERE workspace_id=1 AND slug='$slug';" >/dev/null || true
+  fi
+  echo "Could not move project to Trash." >&2
+  exit 1
+fi
+
+echo "Moved $NAME to Trash: $destination"
