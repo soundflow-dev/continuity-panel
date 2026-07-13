@@ -29,7 +29,7 @@ cp "$ROOT_DIR/Packaging/Info.plist" "$CONTENTS/Info.plist"
 cp "$ROOT_DIR/Packaging/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
 chmod +x "$MACOS_DIR/$APP_NAME"
 
-for item in AGENTS.md LICENSE README.md SECURITY.md install.sh "Install ContinuityPanel.command" assets bin config helpers templates; do
+for item in AGENTS.md LICENSE README.md SECURITY.md install.sh "Install ContinuityPanel.command" assets bin config helpers patches templates; do
   /usr/bin/ditto "$ROOT_DIR/$item" "$ENGINE_DIR/$item"
 done
 
@@ -60,7 +60,7 @@ case "$MODE" in
     pgrep -x "$APP_NAME" >/dev/null
     ;;
   --package|package)
-    ARCHIVE="$DIST_DIR/ContinuityPanel-0.4.0-macos.zip"
+    ARCHIVE="$DIST_DIR/ContinuityPanel-0.4.1-macos.zip"
     rm -f "$ARCHIVE"
     /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$APP_BUNDLE" "$ARCHIVE"
     echo "$ARCHIVE"
