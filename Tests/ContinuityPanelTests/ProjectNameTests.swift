@@ -9,6 +9,12 @@ import Testing
     #expect(!ProjectName.isValid(".hidden"))
 }
 
+@Test func projectNameSuggestionNormalizesImportedFolder() {
+    #expect(ProjectName.suggested(from: "A minha aplicação") == "A_minha_aplicacao")
+    #expect(ProjectName.suggested(from: "  snake game  ") == "snake_game")
+    #expect(ProjectName.suggested(from: "../../escape") == "escape")
+}
+
 @Test func builtInCatalogHasBroadCoverage() {
     #expect(AgentKind.allCases.count >= 10)
     #expect(CloudProvider.allCases.count >= 10)

@@ -18,6 +18,16 @@ struct ProjectInfo: Identifiable, Hashable, Sendable {
     var id: URL { url }
 }
 
+struct ProjectAgentInfo: Identifiable, Hashable, Codable, Sendable {
+    let id: Int
+    let name: String
+    let runtime: String
+
+    var runtimeLabel: String {
+        runtime.isEmpty ? "Agent" : runtime.capitalized
+    }
+}
+
 struct ActivityEntry: Identifiable, Sendable {
     enum Level: Sendable {
         case info

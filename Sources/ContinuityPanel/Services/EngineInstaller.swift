@@ -11,7 +11,9 @@ enum EngineInstallerError: LocalizedError {
 enum EngineInstaller {
     private static let executableNames = [
         "install.sh", "Install ContinuityPanel.command", "add-agent", "codex", "hermes",
-        "install-service", "mc", "new-project", "run-mission-control", "start", "status", "stop"
+        "delete-project", "enqueue-project-analysis", "import-project", "install-service",
+        "list-project-agents", "mc", "new-project", "run-mission-control", "start", "status",
+        "stop", "sync-projects"
     ]
 
     static func synchronizeBundledEngine() throws {

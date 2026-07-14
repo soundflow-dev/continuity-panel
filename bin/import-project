@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${CONTINUITYPANEL_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+SOURCE="${1:-}"
+NAME="${2:-}"
+
+if [[ ! -d "$SOURCE" ]]; then
+  echo "Choose an existing project folder to import." >&2
+  exit 2
+fi
+if [[ ! "$NAME" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]]; then
+  echo "Use a project name containing letters, numbers, dashes, or underscores." >&2
+  exit 2
+fi
+
+SOURCE="$(cd "$SOURCE" && pwd -P)"
+PROJECTS_DIR="$ROOT/projects"
+mkdir -p "$PROJECTS_DIR"
+PROJECTS_DIR="$(cd "$PROJECTS_DIR" && pwd -P)"
+TARGET="$PROJECTS_DIR/$NAME"
+TEMP_TARGET="$PROJECTS_DIR/.import-$NAME-$$"
+
+case "$SOURCE/" in
+  "$PROJECTS_DIR/"*)
+    echo "This folder is already inside ContinuityPanel projects." >&2
+    exit 1
+    ;;
+esac
+case "$PROJECTS_DIR/" in
+  "$SOURCE/"*)
+    echo "Choose the application folder itself, not a parent folder containing ContinuityPanel." >&2
+    exit 1
+    ;;
+esac
+
+if [[ -e "$TARGET" ]]; then
+  echo "A ContinuityPanel project named $NAME already exists." >&2
+  exit 1
+fi
+
+cleanup() {
+  [[ ! -e "$TEMP_TARGET" ]] || rm -rf "$TEMP_TARGET"
+}
+trap cleanup EXIT
+
+# ditto preserves hidden files, the Git repository, symlinks, and macOS metadata.
+/usr/bin/ditto "$SOURCE" "$TEMP_TARGET"
+
+if [[ ! -f "$TEMP_TARGET/AGENTS.md" ]]; then
+  cp "$ROOT/templates/project/AGENTS.md" "$TEMP_TARGET/AGENTS.md"
+fi
+if [[ ! -f "$TEMP_TARGET/PROJECT_STATE.md" ]]; then
+  cp "$ROOT/templates/project/PROJECT_STATE.md" "$TEMP_TARGET/PROJECT_STATE.md"
+fi
+if [[ ! -d "$TEMP_TARGET/.git" ]]; then
+  git -C "$TEMP_TARGET" init -q
+fi
+
+mv "$TEMP_TARGET" "$TARGET"
+"$ROOT/bin/sync-projects" "$NAME"
+
+if find "$TARGET" -maxdepth 1 -type f \( -name '.env' -o -name '.env.*' \) -print -quit | grep -q .; then
+  echo "Warning: the imported project contains an environment file. Keep credentials out of Git and memory files."
+fi
+echo "Imported $SOURCE as $TARGET. The original folder was not changed."
