@@ -12,6 +12,9 @@ struct HermesProfileEditorView: View {
     @State private var loadError: String?
     @State private var profileName = ""
     @State private var createAgent = true
+    @State private var availableModels: [String] = []
+    @State private var isLoadingModels = false
+    @State private var modelLoadError: String?
 
     private var profileID: String {
         HermesProfileID.suggested(from: profileName)
@@ -72,6 +75,11 @@ struct HermesProfileEditorView: View {
         .onChange(of: selectedProviderID) { _, _ in
             model = ""
             values = [:]
+            modelLoadError = nil
+            availableModels = selectedProvider?.models ?? []
+            if let provider = selectedProvider {
+                Task { await refreshModels(provider) }
+            }
         }
     }
 
@@ -140,20 +148,47 @@ struct HermesProfileEditorView: View {
                                     .textSelection(.enabled)
                             }
                         }
-                        if provider.hasModelCatalog {
-                            Picker("Model name", selection: $model) {
-                                Text("Choose a model…").tag("")
-                                ForEach(provider.models, id: \.self) { modelID in
-                                    Text(modelID).tag(modelID)
+                        if !availableModels.isEmpty {
+                            HStack {
+                                Picker("Model name", selection: $model) {
+                                    Text("Choose a model…").tag("")
+                                    ForEach(availableModels, id: \.self) { modelID in
+                                        Text(modelID).tag(modelID)
+                                    }
                                 }
+                                .pickerStyle(.menu)
+                                Button {
+                                    Task { await refreshModels(provider) }
+                                } label: {
+                                    Image(systemName: "arrow.clockwise")
+                                }
+                                .help("Refresh models from \(provider.label)")
+                                .disabled(isLoadingModels)
                             }
-                            .pickerStyle(.menu)
+                            HStack(spacing: 6) {
+                                if isLoadingModels { ProgressView().controlSize(.small) }
+                                Text(isLoadingModels
+                                     ? "Loading the live model catalog…"
+                                     : "\(availableModels.count) models available from \(provider.label).")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            DisclosureGroup("Enter a model ID manually") {
+                                TextField("Exact model identifier", text: $model)
+                                    .textFieldStyle(.roundedBorder)
+                                    .padding(.top, 6)
+                            }
                         } else {
                             TextField("Model name", text: $model)
                                 .textFieldStyle(.roundedBorder)
                         }
-                        Text(provider.hasModelCatalog
-                             ? "Choose one of the models supported by this Hermes provider."
+                        if let modelLoadError {
+                            Label(modelLoadError, systemImage: "exclamationmark.triangle")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                        Text(!availableModels.isEmpty
+                             ? "The list is loaded from the provider when credentials are available; the Hermes catalog is used as an offline fallback."
                              : "Enter the exact model identifier offered by the provider.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -245,6 +280,23 @@ struct HermesProfileEditorView: View {
             loadError = error.localizedDescription
         }
         isLoading = false
+    }
+
+    private func refreshModels(_ provider: HermesProviderDescriptor) async {
+        isLoadingModels = true
+        modelLoadError = nil
+        do {
+            let models = try await store.loadHermesModels(provider: provider, environment: values)
+            guard selectedProviderID == provider.id else { return }
+            availableModels = models
+        } catch {
+            guard selectedProviderID == provider.id else { return }
+            availableModels = provider.models
+            modelLoadError = "Could not refresh the live catalog. Showing the Hermes fallback list."
+        }
+        if selectedProviderID == provider.id {
+            isLoadingModels = false
+        }
     }
 }
 

@@ -151,6 +151,29 @@ final class EnvironmentStore {
             || HermesConfigurationService.defaultEnvironmentValue(named: field) != nil
     }
 
+    func loadHermesModels(
+        provider: HermesProviderDescriptor,
+        environment: [String: String]
+    ) async throws -> [String] {
+        var resolvedEnvironment = environment
+        for field in provider.fields where field.secret {
+            let supplied = (environment[field.name] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if !supplied.isEmpty {
+                resolvedEnvironment[field.name] = supplied
+            } else if let saved = try KeychainService.load(
+                account: hermesCredentialAccount(provider: provider.slug, field: field.name)
+            ), !saved.isEmpty {
+                resolvedEnvironment[field.name] = saved
+            } else if let existing = HermesConfigurationService.defaultEnvironmentValue(named: field.name), !existing.isEmpty {
+                resolvedEnvironment[field.name] = existing
+            }
+        }
+        return try await HermesConfigurationService.loadModels(
+            provider: provider,
+            environment: resolvedEnvironment
+        )
+    }
+
     func refreshHermesProfiles() async {
         guard state.isInstalled(.hermes) else {
             hermesProfiles = []
