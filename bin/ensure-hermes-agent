@@ -33,14 +33,25 @@ escaped_name="$(sql_escape "$agent_name")"
 
 existing="$(sqlite3 "$DB" "SELECT id FROM agents WHERE workspace_id=1 AND json_extract(config, '$.hermesProfile')='$escaped_profile' LIMIT 1;")"
 if [[ -n "$existing" ]]; then
+  current_name="$(sqlite3 "$DB" "SELECT name FROM agents WHERE id=$existing AND workspace_id=1 LIMIT 1;")"
+  if [[ "$current_name" != "$agent_name" ]] && [[ -n "$(sqlite3 "$DB" "SELECT id FROM agents WHERE workspace_id=1 AND name='$escaped_name' AND id!=$existing LIMIT 1;")" ]]; then
+    agent_name="$agent_name ($PROFILE_ID)"
+    escaped_name="$(sql_escape "$agent_name")"
+  fi
+  escaped_current_name="$(sql_escape "$current_name")"
   sqlite3 "$DB" "
     PRAGMA busy_timeout=5000;
+    BEGIN IMMEDIATE;
+    UPDATE tasks SET assigned_to='$escaped_name'
+      WHERE workspace_id=1 AND assigned_to='$escaped_current_name';
     UPDATE agents SET
+      name='$escaped_name',
       config=json_set(COALESCE(config, '{}'), '$.dispatchRuntime', 'hermes', '$.hermesProfile', '$escaped_profile', '$.provider', '$escaped_provider', '$.modelName', '$escaped_model'),
       runtime_type='hermes', status='idle', updated_at=unixepoch()
     WHERE id=$existing AND workspace_id=1;
+    COMMIT;
   " >/dev/null
-  echo "Updated Hermes agent for profile $PROFILE_ID."
+  echo "Updated Hermes agent $agent_name for profile $PROFILE_ID."
   exit 0
 fi
 

@@ -99,14 +99,8 @@ struct HermesProfileEditorView: View {
             VStack(alignment: .leading, spacing: 20) {
                 GroupBox("Hermes profile") {
                     VStack(alignment: .leading, spacing: 10) {
-                        if isEditing {
-                            LabeledContent("Profile name") {
-                                Text(profileName).font(.body.weight(.medium))
-                            }
-                        } else {
-                            TextField("Profile name, for example GLM 5.2", text: $profileName)
-                                .textFieldStyle(.roundedBorder)
-                        }
+                        TextField("Profile name, for example GLM 5.2", text: $profileName)
+                            .textFieldStyle(.roundedBorder)
                         LabeledContent("Profile ID") {
                             Text(profileID.isEmpty ? "Created from the profile name" : profileID)
                                 .font(.caption.monospaced())
@@ -119,7 +113,7 @@ struct HermesProfileEditorView: View {
                             Toggle("Create a Mission Control agent for this profile", isOn: $createAgent)
                         }
                         Text(isEditing
-                             ? "The profile name and ID stay fixed so existing Mission Control tasks keep their association. Provider, model, endpoint, and credentials can be changed."
+                             ? "The visible name, provider, model, endpoint, and credentials can be changed. The internal profile ID stays fixed so existing Mission Control associations remain stable."
                              : "The agent remains permanently associated with this provider and model.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
