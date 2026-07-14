@@ -1,0 +1,58 @@
+diff --git a/src/lib/task-dispatch.ts b/src/lib/task-dispatch.ts
+--- a/src/lib/task-dispatch.ts
++++ b/src/lib/task-dispatch.ts
+@@ -948,6 +948,31 @@ async function callCodexViaCli(
+   })
+ }
+ 
++function resolveHermesProfile(task: DispatchableTask): { id: string; home: string } | null {
++  if (!task.agent_config) return null
++  try {
++    const cfg = JSON.parse(task.agent_config)
++    const profile = typeof cfg.hermesProfile === 'string' ? cfg.hermesProfile.trim() : ''
++    if (!/^[a-z0-9][a-z0-9_-]*$/.test(profile)) return null
++
++    const path = require('node:path')
++    const rootValue = (process.env.HERMES_HOME || '').trim()
++    if (!rootValue) return null
++    const root = path.resolve(rootValue)
++    const home = path.resolve(root, 'profiles', profile)
++    if (!home.startsWith(`${root}${path.sep}`)) return null
++    if (!existsSync(path.join(home, 'config.yaml'))) {
++      throw new Error(`Hermes profile is not configured: ${profile}`)
++    }
++    return { id: profile, home }
++  } catch (error) {
++    if (error instanceof Error && error.message.startsWith('Hermes profile is not configured:')) {
++      throw error
++    }
++    return null
++  }
++}
++
+ /** Dispatch through the isolated Hermes CLI configured by ContinuityPanel. */
+ async function callHermesViaCli(
+   task: DispatchableTask,
+@@ -956,12 +981,20 @@ async function callHermesViaCli(
+   const soul = getAgentSoulContent(task)
+   const fullPrompt = soul ? `${soul}\n\n---\n\n${prompt}` : prompt
+ 
+-  logger.info({ taskId: task.id, agent: task.agent_name }, 'Dispatching task via Hermes CLI')
++  const profile = resolveHermesProfile(task)
++  logger.info(
++    { taskId: task.id, agent: task.agent_name, hermesProfile: profile?.id || 'default' },
++    'Dispatching task via Hermes CLI',
++  )
+ 
+   return await new Promise<AgentResponseParsed>((resolve, reject) => {
+     const proc = spawn('hermes', ['--oneshot', fullPrompt], {
+       stdio: ['ignore', 'pipe', 'pipe'],
+-      env: { ...process.env, CI: '1' },
++      env: {
++        ...process.env,
++        CI: '1',
++        ...(profile ? { HERMES_HOME: profile.home, HERMES_PROFILE: profile.id } : {}),
++      },
+       cwd: resolveTaskWorkingDirectory(task),
+     })
+     let stdout = ''

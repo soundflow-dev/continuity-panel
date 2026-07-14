@@ -8,6 +8,7 @@ final class EnvironmentStore {
     private(set) var state = EnvironmentState()
     private(set) var projects: [ProjectInfo] = []
     private(set) var projectAgents: [ProjectAgentInfo] = []
+    private(set) var hermesProfiles: [HermesProfile] = []
     private(set) var activity: [ActivityEntry] = []
     private(set) var connectedProviders: Set<CloudProvider> = []
     private(set) var isBusy = false
@@ -27,6 +28,7 @@ final class EnvironmentStore {
         connectedProviders = Set(CloudProvider.allCases.filter { KeychainService.contains(account: $0.rawValue) })
         projects = loadProjects()
         await refreshProjectAgents()
+        await refreshHermesProfiles()
     }
 
     func installEnvironment() async {
@@ -64,32 +66,121 @@ final class EnvironmentStore {
         }
     }
 
-    func configureHermes(
+    func configureHermesProfile(
         provider: HermesProviderDescriptor,
         model: String,
-        environment: [String: String]
+        environment: [String: String],
+        profileID: String,
+        displayName: String,
+        createAgent: Bool
     ) async -> Bool {
+        guard profileID == HermesProfileID.defaultProfile || HermesProfileID.isValid(profileID) else {
+            lastError = "Use a profile name containing letters, numbers, dashes, or underscores."
+            return false
+        }
+
+        var resolvedEnvironment = environment
+        do {
+            for field in provider.fields where field.secret {
+                let account = hermesCredentialAccount(provider: provider.slug, field: field.name)
+                let supplied = (environment[field.name] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                if !supplied.isEmpty {
+                    try KeychainService.save(supplied, account: account)
+                    resolvedEnvironment[field.name] = supplied
+                } else if let saved = try KeychainService.load(account: account), !saved.isEmpty {
+                    resolvedEnvironment[field.name] = saved
+                } else if let existing = HermesConfigurationService.defaultEnvironmentValue(named: field.name), !existing.isEmpty {
+                    try KeychainService.save(existing, account: account)
+                    resolvedEnvironment[field.name] = existing
+                }
+            }
+        } catch {
+            lastError = error.localizedDescription
+            return false
+        }
+
+        let missingRequired = provider.fields.filter(\.required).contains {
+            (resolvedEnvironment[$0.name] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        guard !missingRequired else {
+            lastError = "Enter the required provider credentials before saving this profile."
+            return false
+        }
+
         var configured = false
-        await perform("Configuring Hermes…", success: "Hermes configured for \(provider.label)") {
+        await perform("Configuring Hermes profile…", success: "Hermes profile \(displayName) configured") {
             let result = try await HermesConfigurationService.configure(
                 provider: provider,
                 model: model,
-                environment: environment
+                environment: resolvedEnvironment,
+                profileID: profileID,
+                displayName: displayName
             )
-            configured = result.succeeded
+            guard result.succeeded else { return result }
+
+            if createAgent && profileID != HermesProfileID.defaultProfile {
+                let agentResult = try await self.runScript(
+                    "bin/ensure-hermes-agent",
+                    arguments: [profileID, displayName, provider.slug, model]
+                )
+                configured = agentResult.succeeded
+                return CommandResult(
+                    status: agentResult.status,
+                    output: [result.output, agentResult.output].filter { !$0.isEmpty }.joined(separator: "\n")
+                )
+            }
+
+            configured = true
             return result
         }
         return configured
     }
 
-    func authenticateHermes(provider: HermesProviderDescriptor) async -> Bool {
+    func authenticateHermes(provider: HermesProviderDescriptor, profileID: String) async -> Bool {
         var authenticated = false
         await perform("Signing in to \(provider.label)…", success: "Hermes connected to \(provider.label)") {
-            let result = try await HermesConfigurationService.authenticate(provider: provider)
+            let result = try await HermesConfigurationService.authenticate(provider: provider, profileID: profileID)
             authenticated = result.succeeded
             return result
         }
         return authenticated
+    }
+
+    func hasHermesCredential(provider: String, field: String) -> Bool {
+        KeychainService.contains(account: hermesCredentialAccount(provider: provider, field: field))
+            || HermesConfigurationService.defaultEnvironmentValue(named: field) != nil
+    }
+
+    func refreshHermesProfiles() async {
+        guard state.isInstalled(.hermes) else {
+            hermesProfiles = []
+            return
+        }
+        do {
+            try EngineInstaller.synchronizeBundledEngine()
+            hermesProfiles = try await HermesConfigurationService.loadProfiles()
+        } catch {
+            hermesProfiles = []
+        }
+    }
+
+    func removeHermesProfile(_ profile: HermesProfile) async -> Bool {
+        guard !profile.isDefault, HermesProfileID.isValid(profile.id) else {
+            lastError = "The shared default Hermes configuration cannot be removed here."
+            return false
+        }
+        var removed = false
+        await perform("Moving Hermes profile \(profile.displayName) to Trash…", success: "Hermes profile \(profile.displayName) moved to Trash") {
+            try EngineInstaller.synchronizeBundledEngine()
+            let result = try await self.runScript("bin/remove-hermes-profile", arguments: [profile.id])
+            removed = result.succeeded
+            return result
+        }
+        return removed
+    }
+
+    private func hermesCredentialAccount(provider: String, field: String) -> String {
+        "hermes.\(provider).\(field)"
     }
 
     func connectProvider(_ provider: CloudProvider, apiKey: String) -> Bool {

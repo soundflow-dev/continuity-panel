@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct HermesConfigurationView: View {
+struct HermesProfileEditorView: View {
     let store: EnvironmentStore
     @Environment(\.dismiss) private var dismiss
     @State private var providers: [HermesProviderDescriptor] = []
@@ -10,6 +10,12 @@ struct HermesConfigurationView: View {
     @State private var values: [String: String] = [:]
     @State private var isLoading = true
     @State private var loadError: String?
+    @State private var profileName = ""
+    @State private var createAgent = true
+
+    private var profileID: String {
+        HermesProfileID.suggested(from: profileName)
+    }
 
     private var filteredProviders: [HermesProviderDescriptor] {
         guard !searchText.isEmpty else { return providers }
@@ -59,7 +65,7 @@ struct HermesConfigurationView: View {
                     )
                 }
             }
-            .navigationTitle(selectedProvider?.label ?? "Configure Hermes")
+            .navigationTitle(selectedProvider?.label ?? "New Hermes profile")
         }
         .frame(width: 900, height: 620)
         .task { await loadCatalog() }
@@ -72,6 +78,23 @@ struct HermesConfigurationView: View {
     private func providerForm(_ provider: HermesProviderDescriptor) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                GroupBox("Hermes profile") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        TextField("Profile name, for example GLM 5.2", text: $profileName)
+                            .textFieldStyle(.roundedBorder)
+                        LabeledContent("Profile ID") {
+                            Text(profileID.isEmpty ? "Created from the profile name" : profileID)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
+                        Toggle("Create a Mission Control agent for this profile", isOn: $createAgent)
+                        Text("The agent remains permanently associated with this provider and model.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 6)
+                }
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text(provider.label).font(.title.bold())
                     Text(provider.description).foregroundStyle(.secondary)
@@ -87,10 +110,10 @@ struct HermesConfigurationView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Button("Sign in to \(provider.label)") {
-                                Task { _ = await store.authenticateHermes(provider: provider) }
+                                Task { _ = await store.authenticateHermes(provider: provider, profileID: profileID) }
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(store.isBusy)
+                            .disabled(store.isBusy || !HermesProfileID.isValid(profileID))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 6)
@@ -147,7 +170,12 @@ struct HermesConfigurationView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                     if field.secret {
-                                        SecureField("Enter \(field.name)", text: valueBinding(for: field.name))
+                                        SecureField(
+                                            store.hasHermesCredential(provider: provider.slug, field: field.name)
+                                                ? "Saved credential — leave blank to reuse"
+                                                : "Enter \(field.name)",
+                                            text: valueBinding(for: field.name)
+                                        )
                                             .textFieldStyle(.roundedBorder)
                                     } else {
                                         TextField("Optional", text: valueBinding(for: field.name))
@@ -155,7 +183,7 @@ struct HermesConfigurationView: View {
                                     }
                                 }
                             }
-                            Text("Secrets are written only to Hermes' private environment with restricted permissions.")
+                            Text("Credentials are saved once in macOS Keychain and can be reused by other profiles for this provider.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -169,9 +197,16 @@ struct HermesConfigurationView: View {
                     }
                     Spacer()
                     Button("Cancel") { dismiss() }
-                    Button("Save Provider & Model") {
+                    Button("Create Profile & Agent") {
                         Task {
-                            if await store.configureHermes(provider: provider, model: model, environment: values) {
+                            if await store.configureHermesProfile(
+                                provider: provider,
+                                model: model,
+                                environment: values,
+                                profileID: profileID,
+                                displayName: profileName.trimmingCharacters(in: .whitespacesAndNewlines),
+                                createAgent: createAgent
+                            ) {
                                 values = [:]
                                 dismiss()
                             }
@@ -186,9 +221,11 @@ struct HermesConfigurationView: View {
     }
 
     private func canSave(_ provider: HermesProviderDescriptor) -> Bool {
-        !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        HermesProfileID.isValid(profileID)
+            && !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && provider.fields.filter(\.required).allSatisfy {
                 !(values[$0.name] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    || ($0.secret && store.hasHermesCredential(provider: provider.slug, field: $0.name))
             }
     }
 
