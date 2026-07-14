@@ -8,6 +8,11 @@ struct HermesConfigurationPayload: Codable, Sendable {
     let displayName: String
 }
 
+private struct HermesModelCatalogPayload: Codable, Sendable {
+    let provider: String
+    let environment: [String: String]
+}
+
 enum HermesConfigurationService {
     private static var defaultHermesHome: URL {
         AppPaths.root.appendingPathComponent("home/.hermes", isDirectory: true)
@@ -50,6 +55,30 @@ enum HermesConfigurationService {
         )
         guard result.succeeded else { throw StoreError.commandFailed(result.output) }
         return try JSONDecoder().decode([HermesProfile].self, from: Data(result.output.utf8))
+    }
+
+    static func loadModels(
+        provider: HermesProviderDescriptor,
+        environment: [String: String]
+    ) async throws -> [String] {
+        var payloadEnvironment = environment
+        if payloadEnvironment["baseURL", default: ""].isEmpty {
+            let overrideField = provider.fields.first { !$0.secret && $0.name.localizedCaseInsensitiveContains("BASE_URL") }
+            payloadEnvironment["baseURL"] = overrideField.flatMap { environment[$0.name] } ?? provider.defaultBaseURL
+        }
+        let payload = HermesModelCatalogPayload(provider: provider.slug, environment: payloadEnvironment)
+        let input = try JSONEncoder().encode(payload)
+        let python = AppPaths.root.appendingPathComponent("home/.hermes/hermes-agent/venv/bin/python")
+        let helper = AppPaths.root.appendingPathComponent("helpers/list_hermes_models.py")
+        let result = try await CommandRunner.run(
+            executable: python,
+            arguments: [helper.path],
+            currentDirectory: AppPaths.root.appendingPathComponent("home/.hermes/hermes-agent"),
+            standardInput: input,
+            environment: isolatedEnvironment()
+        )
+        guard result.succeeded else { throw StoreError.commandFailed(result.output) }
+        return try JSONDecoder().decode([String].self, from: Data(result.output.utf8))
     }
 
     static func defaultEnvironmentValue(named name: String) -> String? {
