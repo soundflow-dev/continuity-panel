@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${CONTINUITYPANEL_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+PROFILE_ID="${1:-}"
+DB="$ROOT/mission-control/.data/mission-control.db"
+
+if [[ "$PROFILE_ID" != "__default__" ]] && [[ ! "$PROFILE_ID" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+  echo "Usage: $0 profile-id" >&2
+  exit 2
+fi
+if [[ ! -f "$DB" ]] || [[ "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='agents';")" != "1" ]]; then
+  exit 0
+fi
+
+sql_escape() {
+  printf '%s' "$1" | sed "s/'/''/g"
+}
+
+escaped_profile="$(sql_escape "$PROFILE_ID")"
+if [[ "$PROFILE_ID" == "__default__" ]]; then
+  agent_names="$(sqlite3 "$DB" "SELECT name FROM agents WHERE workspace_id=1 AND (json_extract(config, '$.dispatchRuntime')='hermes' OR runtime_type='hermes') AND coalesce(json_extract(config, '$.hermesProfile'), '')='';")"
+else
+  agent_names="$(sqlite3 "$DB" "SELECT name FROM agents WHERE workspace_id=1 AND json_extract(config, '$.hermesProfile')='$escaped_profile';")"
+fi
+
+while IFS= read -r agent_name; do
+  [[ -z "$agent_name" ]] && continue
+  escaped_agent="$(sql_escape "$agent_name")"
+  active_tasks="$(sqlite3 "$DB" "SELECT count(*) FROM tasks WHERE workspace_id=1 AND assigned_to='$escaped_agent' AND status IN ('assigned','in_progress');" 2>/dev/null || printf '0')"
+  if [[ "$active_tasks" != "0" ]]; then
+    echo "Finish or reassign the active tasks for $agent_name before editing this profile." >&2
+    exit 1
+  fi
+done <<< "$agent_names"
+
+echo "Hermes profile $PROFILE_ID is idle."

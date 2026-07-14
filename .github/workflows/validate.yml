@@ -105,14 +105,16 @@ jobs:
             );
           "
           CONTINUITYPANEL_ROOT="$ROOT" ./bin/ensure-hermes-agent glm-nim "GLM 5.2" nvidia z-ai/glm-5.2
-          CONTINUITYPANEL_ROOT="$ROOT" ./bin/ensure-hermes-agent glm-nim "GLM 5.2" nvidia z-ai/glm-5.2
+          CONTINUITYPANEL_ROOT="$ROOT" ./bin/ensure-hermes-agent glm-nim "GLM Updated" nvidia deepseek-ai/deepseek-v4-pro
           test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT count(*) FROM agents;")" = "1"
           test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT json_extract(config, '$.hermesProfile') FROM agents;")" = "glm-nim"
-          test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT json_extract(config, '$.modelName') FROM agents;")" = "z-ai/glm-5.2"
+          test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT json_extract(config, '$.modelName') FROM agents;")" = "deepseek-ai/deepseek-v4-pro"
           sqlite3 "$ROOT/mission-control/.data/mission-control.db" "INSERT INTO tasks(id, assigned_to, status) VALUES(1, 'Hermes GLM 5.2', 'assigned');"
+          ! CONTINUITYPANEL_ROOT="$ROOT" ./bin/check-hermes-profile-idle glm-nim
           ! CONTINUITYPANEL_ROOT="$ROOT" CONTINUITYPANEL_TRASH_DIR="$ROOT/trash" ./bin/remove-hermes-profile glm-nim
           test -d "$ROOT/home/.hermes/profiles/glm-nim"
           sqlite3 "$ROOT/mission-control/.data/mission-control.db" "DELETE FROM tasks;"
+          CONTINUITYPANEL_ROOT="$ROOT" ./bin/check-hermes-profile-idle glm-nim
           CONTINUITYPANEL_ROOT="$ROOT" CONTINUITYPANEL_TRASH_DIR="$ROOT/trash" ./bin/remove-hermes-profile glm-nim
           test -d "$ROOT/trash/ContinuityPanel-Hermes-glm-nim"
           test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT hidden FROM agents;")" = "1"
@@ -158,4 +160,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ContinuityPanel-macOS
-          path: dist/ContinuityPanel-0.5.3-macos.zip
+          path: dist/ContinuityPanel-0.5.4-macos.zip
