@@ -59,7 +59,8 @@ enum HermesConfigurationService {
 
     static func loadModels(
         provider: HermesProviderDescriptor,
-        environment: [String: String]
+        environment: [String: String],
+        profileID: String
     ) async throws -> [String] {
         var payloadEnvironment = environment
         if payloadEnvironment["baseURL", default: ""].isEmpty {
@@ -75,7 +76,7 @@ enum HermesConfigurationService {
             arguments: [helper.path],
             currentDirectory: AppPaths.root.appendingPathComponent("home/.hermes/hermes-agent"),
             standardInput: input,
-            environment: isolatedEnvironment()
+            environment: isolatedEnvironment(profileID: profileID)
         )
         guard result.succeeded else { throw StoreError.commandFailed(result.output) }
         return try JSONDecoder().decode([String].self, from: Data(result.output.utf8))

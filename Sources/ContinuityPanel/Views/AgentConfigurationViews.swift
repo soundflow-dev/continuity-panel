@@ -118,7 +118,11 @@ struct HermesProfileEditorView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Button("Sign in to \(provider.label)") {
-                                Task { _ = await store.authenticateHermes(provider: provider, profileID: profileID) }
+                                Task {
+                                    if await store.authenticateHermes(provider: provider, profileID: profileID) {
+                                        await refreshModels(provider)
+                                    }
+                                }
                             }
                             .buttonStyle(.borderedProminent)
                             .disabled(store.isBusy || !HermesProfileID.isValid(profileID))
@@ -286,7 +290,11 @@ struct HermesProfileEditorView: View {
         isLoadingModels = true
         modelLoadError = nil
         do {
-            let models = try await store.loadHermesModels(provider: provider, environment: values)
+            let models = try await store.loadHermesModels(
+                provider: provider,
+                environment: values,
+                profileID: HermesProfileID.isValid(profileID) ? profileID : HermesProfileID.defaultProfile
+            )
             guard selectedProviderID == provider.id else { return }
             availableModels = models
         } catch {
