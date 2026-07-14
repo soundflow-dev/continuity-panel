@@ -19,6 +19,7 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 - Separate cloud-provider catalog for OpenAI, Anthropic, OpenRouter, Google, Z.AI/GLM, Mistral, Groq, xAI, DeepSeek, and Moonshot.
 - Local Mission Control service managed by `launchd`.
 - Shared `AGENTS.md` and `PROJECT_STATE.md` protocol for agent handoff.
+- Safe project import that preserves hidden files and Git history, with optional automatic analysis by any configured agent.
 - Cloud-provider secrets stored in the current user's macOS Keychain.
 - No bundled models and no credentials committed to Git.
 
@@ -31,13 +32,13 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 
 ## Install the app
 
-Download `ContinuityPanel-0.4.5-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
+Download `ContinuityPanel-0.4.6-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
 
 1. Select **Install Environment** in the app.
 2. Create the local Mission Control administrator when the embedded setup appears.
 3. Add the agents you want under **Agents & Models**.
 4. Sign in or connect cloud providers through the graphical interface.
-5. Create a local project or restore one from its own GitHub repository.
+5. Create a local project, or use **Import Existing Project** to copy an existing application into ContinuityPanel.
 
 The app never sends a project to the ContinuityPanel maintainer's GitHub account. New projects remain local until their owner explicitly chooses a GitHub account, repository, organization, and visibility.
 
@@ -118,6 +119,18 @@ The command initializes Git, registers the project in Mission Control, and adds:
 - `PROJECT_STATE.md`: objective, decisions, completed work, verification, risks, and the exact next action.
 
 Projects can be moved safely to the macOS Trash from the app. This archives the corresponding Mission Control project but never removes a GitHub repository.
+
+### Import an existing application
+
+Open **Projects → Import Existing Project…** and choose the application folder. ContinuityPanel:
+
+- copies the complete folder while leaving the original untouched;
+- preserves hidden files, Git history, and existing handoff documentation;
+- creates `AGENTS.md`, `PROJECT_STATE.md`, and a Git repository only when they are missing;
+- registers the copied project in Mission Control;
+- can assign a read-only initial analysis to any configured Mission Control agent.
+
+Automatic analysis updates `PROJECT_STATE.md` with the detected objective, stack, architecture, run and test commands, Git state, risks, and the recommended next task. By default it does not install dependencies, execute tests, or change application code. **Run existing tests when safe** is an explicit opt-in and still does not permit dependency installation.
 
 Commit both files with the application and give each application its own GitHub repository. This is what allows Codex, Hermes, or another agent to resume work without depending on another provider's conversation history.
 

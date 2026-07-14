@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${CONTINUITYPANEL_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+DB="$ROOT/mission-control/.data/mission-control.db"
+
+if [[ ! -f "$DB" ]] || [[ "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='agents';")" != "1" ]]; then
+  printf '[]\n'
+  exit 0
+fi
+
+sqlite3 -json "$DB" "
+  SELECT id, name, COALESCE(runtime_type, '') AS runtime
+  FROM agents
+  WHERE workspace_id=1 AND hidden=0 AND runtime_type IS NOT NULL AND runtime_type!=''
+  ORDER BY name COLLATE NOCASE;
+"

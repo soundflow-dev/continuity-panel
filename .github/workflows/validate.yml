@@ -46,6 +46,46 @@ jobs:
           mv "$ROOT/trash/Test_App" "$ROOT/projects/Test_App"
           CONTINUITYPANEL_ROOT="$ROOT" ./bin/sync-projects
           test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT status FROM projects WHERE slug='test-app';")" = "active"
+      - name: Validate safe project import and analysis scheduling
+        run: |
+          ROOT="$RUNNER_TEMP/project-import"
+          SOURCE="$RUNNER_TEMP/source-project"
+          mkdir -p "$ROOT/bin" "$ROOT/projects" "$ROOT/templates/project" "$ROOT/mission-control/.data" "$SOURCE"
+          cp bin/sync-projects "$ROOT/bin/"
+          cp templates/project/AGENTS.md templates/project/PROJECT_STATE.md "$ROOT/templates/project/"
+          touch "$SOURCE/.hidden-file" "$SOURCE/README.md"
+          git -C "$SOURCE" init -q
+          sqlite3 "$ROOT/mission-control/.data/mission-control.db" "
+            CREATE TABLE projects (
+              id INTEGER PRIMARY KEY, workspace_id INTEGER NOT NULL DEFAULT 1,
+              name TEXT NOT NULL, slug TEXT NOT NULL, description TEXT, ticket_prefix TEXT NOT NULL,
+              ticket_counter INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'active',
+              created_at INTEGER, updated_at INTEGER
+            );
+            CREATE UNIQUE INDEX project_slug ON projects(workspace_id, slug);
+            CREATE UNIQUE INDEX project_prefix ON projects(workspace_id, ticket_prefix);
+            CREATE TABLE agents (
+              id INTEGER PRIMARY KEY, name TEXT NOT NULL, workspace_id INTEGER NOT NULL DEFAULT 1,
+              hidden INTEGER NOT NULL DEFAULT 0, runtime_type TEXT
+            );
+            CREATE TABLE tasks (
+              id INTEGER PRIMARY KEY, title TEXT, description TEXT, status TEXT, priority TEXT,
+              project_id INTEGER, project_ticket_no INTEGER, assigned_to TEXT, created_by TEXT,
+              created_at INTEGER, updated_at INTEGER, tags TEXT, metadata TEXT, workspace_id INTEGER
+            );
+            INSERT INTO agents(id, name, runtime_type) VALUES(7, 'Hermes Developer', 'hermes');
+          "
+          CONTINUITYPANEL_ROOT="$ROOT" ./bin/import-project "$SOURCE" Imported_App
+          test -e "$SOURCE/README.md"
+          test -e "$ROOT/projects/Imported_App/.hidden-file"
+          test -d "$ROOT/projects/Imported_App/.git"
+          test -f "$ROOT/projects/Imported_App/AGENTS.md"
+          test -f "$ROOT/projects/Imported_App/PROJECT_STATE.md"
+          ! CONTINUITYPANEL_ROOT="$ROOT" ./bin/import-project "$ROOT" Invalid_Parent
+          CONTINUITYPANEL_ROOT="$ROOT" ./bin/enqueue-project-analysis Imported_App 7 false
+          test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT status||':'||assigned_to||':'||project_ticket_no FROM tasks;")" = "assigned:Hermes Developer:1"
+          AGENTS_JSON="$(CONTINUITYPANEL_ROOT="$ROOT" ./bin/list-project-agents)"
+          [[ "$AGENTS_JSON" == *'"runtime":"hermes"'* ]]
       - name: Validate Mission Control integration patch
         run: |
           git clone --depth 1 --branch v2.1.0 https://github.com/builderz-labs/mission-control.git "$RUNNER_TEMP/mission-control"
@@ -68,4 +108,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ContinuityPanel-macOS
-          path: dist/ContinuityPanel-0.4.5-macos.zip
+          path: dist/ContinuityPanel-0.4.6-macos.zip

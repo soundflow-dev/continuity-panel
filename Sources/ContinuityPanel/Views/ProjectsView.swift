@@ -4,6 +4,7 @@ import SwiftUI
 struct ProjectsView: View {
     let store: EnvironmentStore
     @State private var showingNewProject = false
+    @State private var showingImportProject = false
     @State private var projectPendingDeletion: ProjectInfo?
 
     var body: some View {
@@ -17,6 +18,7 @@ struct ProjectsView: View {
                 }
                 Spacer()
                 Button("Show in Finder") { store.revealProjects() }
+                Button("Import Existing Project…") { showingImportProject = true }
                 Button("New Local Project") { showingNewProject = true }
                     .buttonStyle(.borderedProminent)
             }
@@ -51,6 +53,9 @@ struct ProjectsView: View {
         }
         .sheet(isPresented: $showingNewProject) {
             NewProjectView(store: store)
+        }
+        .sheet(isPresented: $showingImportProject) {
+            ImportProjectView(store: store)
         }
         .alert(
             "Move project to Trash?",

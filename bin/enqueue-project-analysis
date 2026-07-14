@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${CONTINUITYPANEL_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+NAME="${1:-}"
+AGENT_ID="${2:-}"
+RUN_TESTS="${3:-false}"
+DB="$ROOT/mission-control/.data/mission-control.db"
+
+if [[ ! "$NAME" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] || [[ ! "$AGENT_ID" =~ ^[0-9]+$ ]]; then
+  echo "Usage: $0 project-name agent-id [true|false]" >&2
+  exit 2
+fi
+if [[ ! -f "$DB" ]]; then
+  echo "Mission Control is not ready to schedule the analysis." >&2
+  exit 1
+fi
+
+"$ROOT/bin/sync-projects" "$NAME" >/dev/null
+slug="$(printf '%s' "$NAME" | tr '[:upper:]_' '[:lower:]-')"
+project_id="$(sqlite3 "$DB" "SELECT id FROM projects WHERE workspace_id=1 AND slug='$slug' AND status='active' LIMIT 1;")"
+agent_name="$(sqlite3 "$DB" "SELECT name FROM agents WHERE workspace_id=1 AND id=$AGENT_ID AND hidden=0 AND runtime_type IS NOT NULL LIMIT 1;")"
+
+if [[ -z "$project_id" ]]; then
+  echo "The imported project is not registered in Mission Control." >&2
+  exit 1
+fi
+if [[ -z "$agent_name" ]]; then
+  echo "The selected agent is no longer available." >&2
+  exit 1
+fi
+
+PROMPT="Analyze the existing project in its current working directory. Read AGENTS.md first. Inspect the repository tree, README and other documentation, dependency manifests, Git status and recent Git history. Do not expose credentials or copy secret values into documentation. Do not install dependencies and do not change application code. Create or update PROJECT_STATE.md with the product objective, technology stack, architecture, existing features, important decisions discoverable from the repository, exact run and test commands, known issues, risks, current Git state, and one concrete recommended next task. Preserve useful existing PROJECT_STATE.md content."
+if [[ "$RUN_TESTS" == "true" ]]; then
+  PROMPT="$PROMPT You may run existing read-only build or test commands when they do not install dependencies or change source files. Record every command and result in PROJECT_STATE.md."
+else
+  PROMPT="$PROMPT Do not run builds or tests during this initial analysis; only document the commands that appear to be available."
+fi
+
+sql_escape() {
+  printf '%s' "$1" | sed "s/'/''/g"
+}
+escaped_agent="$(sql_escape "$agent_name")"
+escaped_prompt="$(sql_escape "$PROMPT")"
+
+sqlite3 "$DB" <<SQL
+PRAGMA busy_timeout=5000;
+BEGIN IMMEDIATE;
+UPDATE projects
+SET ticket_counter=ticket_counter+1, updated_at=unixepoch()
+WHERE id=$project_id AND workspace_id=1;
+INSERT INTO tasks (
+  title, description, status, priority, project_id, project_ticket_no,
+  assigned_to, created_by, created_at, updated_at, tags, metadata, workspace_id
+)
+SELECT
+  'Analyze imported project', '$escaped_prompt', 'assigned', 'medium', id, ticket_counter,
+  '$escaped_agent', 'ContinuityPanel', unixepoch(), unixepoch(),
+  '["import","analysis","documentation"]',
+  '{"source":"continuitypanel-import","analysis_only":true}', 1
+FROM projects WHERE id=$project_id AND workspace_id=1;
+COMMIT;
+SQL
+
+echo "Analysis scheduled for $agent_name."

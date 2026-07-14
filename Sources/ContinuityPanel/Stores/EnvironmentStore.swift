@@ -7,6 +7,7 @@ import Observation
 final class EnvironmentStore {
     private(set) var state = EnvironmentState()
     private(set) var projects: [ProjectInfo] = []
+    private(set) var projectAgents: [ProjectAgentInfo] = []
     private(set) var activity: [ActivityEntry] = []
     private(set) var connectedProviders: Set<CloudProvider> = []
     private(set) var isBusy = false
@@ -25,6 +26,7 @@ final class EnvironmentStore {
         }
         connectedProviders = Set(CloudProvider.allCases.filter { KeychainService.contains(account: $0.rawValue) })
         projects = loadProjects()
+        await refreshProjectAgents()
     }
 
     func installEnvironment() async {
@@ -151,6 +153,56 @@ final class EnvironmentStore {
         return deleted
     }
 
+    func refreshProjectAgents() async {
+        do {
+            try EngineInstaller.synchronizeBundledEngine()
+            let result = try await runScript("bin/list-project-agents")
+            guard result.succeeded,
+                  let data = result.output.data(using: .utf8) else {
+                projectAgents = []
+                return
+            }
+            projectAgents = try JSONDecoder().decode([ProjectAgentInfo].self, from: data)
+        } catch {
+            projectAgents = []
+        }
+    }
+
+    func importProject(
+        from source: URL,
+        named rawName: String,
+        analyzeWith agent: ProjectAgentInfo?,
+        runTests: Bool
+    ) async -> Bool {
+        let name = ProjectName.normalized(rawName)
+        guard ProjectName.isValid(name) else {
+            lastError = "Use a short project name containing letters, numbers, dashes, or underscores."
+            return false
+        }
+        guard source.standardizedFileURL != AppPaths.projects.appendingPathComponent(name).standardizedFileURL else {
+            lastError = "This project is already inside ContinuityPanel."
+            return false
+        }
+
+        var imported = false
+        await perform("Importing \(name)…", success: "Project \(name) imported") {
+            try EngineInstaller.synchronizeBundledEngine()
+            let importResult = try await self.runScript("bin/import-project", arguments: [source.path, name])
+            imported = importResult.succeeded
+            return importResult
+        }
+
+        if imported, let agent {
+            await perform("Scheduling analysis with \(agent.name)…", success: "Analysis scheduled with \(agent.name)") {
+                try await self.runScript(
+                    "bin/enqueue-project-analysis",
+                    arguments: [name, String(agent.id), runTests ? "true" : "false"]
+                )
+            }
+        }
+        return imported
+    }
+
     func revealProjects() {
         try? FileManager.default.createDirectory(at: AppPaths.projects, withIntermediateDirectories: true)
         NSWorkspace.shared.activateFileViewerSelecting([AppPaths.projects])
@@ -247,5 +299,11 @@ enum ProjectName {
     static func isValid(_ value: String) -> Bool {
         guard !value.isEmpty, value.count <= 80, value.first != "." else { return false }
         return value.range(of: "^[A-Za-z0-9][A-Za-z0-9_-]*$", options: .regularExpression) != nil
+    }
+
+    static func suggested(from value: String) -> String {
+        let folded = value.folding(options: [.diacriticInsensitive, .widthInsensitive], locale: .current)
+        let replaced = folded.replacingOccurrences(of: "[^A-Za-z0-9_-]+", with: "_", options: .regularExpression)
+        return String(replaced.trimmingCharacters(in: CharacterSet(charactersIn: "_-")).prefix(80))
     }
 }
