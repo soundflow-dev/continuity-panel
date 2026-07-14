@@ -29,7 +29,7 @@ cp "$ROOT_DIR/Packaging/Info.plist" "$CONTENTS/Info.plist"
 cp "$ROOT_DIR/Packaging/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
 chmod +x "$MACOS_DIR/$APP_NAME"
 
-for item in AGENTS.md LICENSE README.md SECURITY.md install.sh "Install ContinuityPanel.command" assets bin config helpers patches templates; do
+for item in AGENTS.md LICENSE README.md SECURITY.md THIRD_PARTY_NOTICES.md install.sh "Install ContinuityPanel.command" assets bin config helpers patches templates; do
   /usr/bin/ditto "$ROOT_DIR/$item" "$ENGINE_DIR/$item"
 done
 

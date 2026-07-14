@@ -191,6 +191,12 @@ continuity-panel/
 
 This repository automates installation and interoperability; it does not redistribute or replace the upstream projects:
 
+### Mission Control credit
+
+ContinuityPanel uses and integrates [Mission Control](https://github.com/builderz-labs/mission-control), the open-source AI-agent orchestration dashboard created and maintained by **Builderz Labs**. The Mission Control interface, orchestration foundation, and upstream source belong to their original authors and contributors. ContinuityPanel is an independent community integration and is not presented as the creator or owner of Mission Control.
+
+Mission Control is licensed under the MIT License, copyright © 2026 Builderz Labs. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the attribution and license notice included with this project.
+
 - [Builderz Labs Mission Control](https://github.com/builderz-labs/mission-control)
 - [Nous Research Hermes Agent](https://github.com/NousResearch/hermes-agent)
 - [OpenAI Codex](https://developers.openai.com/codex/cli/)
