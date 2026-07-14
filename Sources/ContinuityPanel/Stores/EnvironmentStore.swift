@@ -165,8 +165,8 @@ final class EnvironmentStore {
     }
 
     func removeHermesProfile(_ profile: HermesProfile) async -> Bool {
-        guard !profile.isDefault, HermesProfileID.isValid(profile.id) else {
-            lastError = "The shared default Hermes configuration cannot be removed here."
+        guard profile.id == HermesProfileID.defaultProfile || HermesProfileID.isValid(profile.id) else {
+            lastError = "This Hermes profile has an invalid identifier."
             return false
         }
         var removed = false

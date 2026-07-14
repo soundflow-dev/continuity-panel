@@ -116,6 +116,24 @@ jobs:
           CONTINUITYPANEL_ROOT="$ROOT" CONTINUITYPANEL_TRASH_DIR="$ROOT/trash" ./bin/remove-hermes-profile glm-nim
           test -d "$ROOT/trash/ContinuityPanel-Hermes-glm-nim"
           test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT hidden FROM agents;")" = "1"
+          mkdir -p "$ROOT/home/.hermes/hermes-agent" "$ROOT/home/.hermes/hooks"
+          touch "$ROOT/home/.hermes/config.yaml" "$ROOT/home/.hermes/state.db" "$ROOT/home/.hermes/hermes-agent/runtime-kept"
+          sqlite3 "$ROOT/mission-control/.data/mission-control.db" "
+            INSERT INTO agents(name, role, status, created_at, updated_at, config, runtime_type)
+            VALUES('Hermes Default', 'builder', 'idle', unixepoch(), unixepoch(), json_object('dispatchRuntime', 'hermes'), 'hermes');
+            INSERT INTO tasks(id, assigned_to, status) VALUES(2, 'Hermes Default', 'in_progress');
+          "
+          ! CONTINUITYPANEL_ROOT="$ROOT" CONTINUITYPANEL_TRASH_DIR="$ROOT/trash" ./bin/remove-hermes-profile __default__
+          test -f "$ROOT/home/.hermes/config.yaml"
+          sqlite3 "$ROOT/mission-control/.data/mission-control.db" "DELETE FROM tasks WHERE id=2;"
+          CONTINUITYPANEL_ROOT="$ROOT" CONTINUITYPANEL_TRASH_DIR="$ROOT/trash" ./bin/remove-hermes-profile __default__
+          test -d "$ROOT/trash/ContinuityPanel-Hermes-default"
+          test -f "$ROOT/trash/ContinuityPanel-Hermes-default/config.yaml"
+          test -f "$ROOT/trash/ContinuityPanel-Hermes-default/state.db"
+          test -f "$ROOT/home/.hermes/hermes-agent/runtime-kept"
+          test -d "$ROOT/home/.hermes/hooks"
+          test ! -e "$ROOT/home/.hermes/config.yaml"
+          test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT hidden FROM agents WHERE name='Hermes Default';")" = "1"
       - name: Validate Mission Control integration patch
         run: |
           git clone --depth 1 --branch v2.1.0 https://github.com/builderz-labs/mission-control.git "$RUNNER_TEMP/mission-control"
@@ -140,4 +158,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ContinuityPanel-macOS
-          path: dist/ContinuityPanel-0.5.0-macos.zip
+          path: dist/ContinuityPanel-0.5.1-macos.zip

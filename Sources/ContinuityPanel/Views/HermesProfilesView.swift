@@ -50,10 +50,8 @@ struct HermesProfilesView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        if !profile.isDefault {
-                            Button("Remove…", role: .destructive) {
-                                profilePendingRemoval = profile
-                            }
+                        Button("Remove…", role: .destructive) {
+                            profilePendingRemoval = profile
                         }
                     }
                     .padding(.vertical, 5)
@@ -93,7 +91,11 @@ struct HermesProfilesView: View {
                 profilePendingRemoval = nil
             }
         } message: { profile in
-            Text("\(profile.displayName) will be moved to the macOS Trash and its Mission Control agent will be hidden. Shared provider credentials will remain available to other profiles.")
+            if profile.isDefault {
+                Text("The default configuration, sessions, state, and memory will be moved to the macOS Trash. Hermes will remain installed, its Mission Control agent will be hidden, and shared provider credentials will remain in the macOS Keychain.")
+            } else {
+                Text("\(profile.displayName) will be moved to the macOS Trash and its Mission Control agent will be hidden. Shared provider credentials will remain available to other profiles.")
+            }
         }
     }
 }
