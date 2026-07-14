@@ -50,7 +50,8 @@ jobs:
         run: |
           ROOT="$RUNNER_TEMP/project-import"
           SOURCE="$RUNNER_TEMP/source-project"
-          mkdir -p "$ROOT/projects" "$ROOT/templates/project" "$ROOT/mission-control/.data" "$SOURCE"
+          mkdir -p "$ROOT/bin" "$ROOT/projects" "$ROOT/templates/project" "$ROOT/mission-control/.data" "$SOURCE"
+          cp bin/sync-projects "$ROOT/bin/"
           cp templates/project/AGENTS.md templates/project/PROJECT_STATE.md "$ROOT/templates/project/"
           touch "$SOURCE/.hidden-file" "$SOURCE/README.md"
           git -C "$SOURCE" init -q
