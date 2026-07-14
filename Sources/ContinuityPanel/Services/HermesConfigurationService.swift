@@ -23,6 +23,10 @@ enum HermesConfigurationService {
         return defaultHermesHome.appendingPathComponent("profiles/\(profileID)", isDirectory: true)
     }
 
+    static func isConfigured(profileID: String) -> Bool {
+        FileManager.default.fileExists(atPath: profileHome(for: profileID).appendingPathComponent("config.yaml").path)
+    }
+
     private static func isolatedEnvironment(profileID: String = HermesProfileID.defaultProfile) -> [String: String] {
         let home = AppPaths.root.appendingPathComponent("home", isDirectory: true)
         return [

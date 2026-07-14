@@ -107,8 +107,13 @@ final class EnvironmentStore {
             return false
         }
 
+        let profileAlreadyExists = HermesConfigurationService.isConfigured(profileID: profileID)
         var configured = false
         await perform("Configuring Hermes profile…", success: "Hermes profile \(displayName) configured") {
+            if profileAlreadyExists {
+                let idleResult = try await self.runScript("bin/check-hermes-profile-idle", arguments: [profileID])
+                guard idleResult.succeeded else { return idleResult }
+            }
             let result = try await HermesConfigurationService.configure(
                 provider: provider,
                 model: model,
@@ -118,7 +123,7 @@ final class EnvironmentStore {
             )
             guard result.succeeded else { return result }
 
-            if createAgent && profileID != HermesProfileID.defaultProfile {
+            if profileID != HermesProfileID.defaultProfile && (createAgent || profileAlreadyExists) {
                 let agentResult = try await self.runScript(
                     "bin/ensure-hermes-agent",
                     arguments: [profileID, displayName, provider.slug, model]

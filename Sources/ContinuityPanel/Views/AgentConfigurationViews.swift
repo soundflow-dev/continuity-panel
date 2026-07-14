@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HermesProfileEditorView: View {
     let store: EnvironmentStore
+    var editingProfile: HermesProfile?
     @Environment(\.dismiss) private var dismiss
     @State private var providers: [HermesProviderDescriptor] = []
     @State private var selectedProviderID: String?
@@ -17,7 +18,16 @@ struct HermesProfileEditorView: View {
     @State private var modelLoadError: String?
 
     private var profileID: String {
-        HermesProfileID.suggested(from: profileName)
+        editingProfile?.id ?? HermesProfileID.suggested(from: profileName)
+    }
+
+    private var isEditing: Bool {
+        editingProfile != nil
+    }
+
+    init(store: EnvironmentStore, editingProfile: HermesProfile? = nil) {
+        self.store = store
+        self.editingProfile = editingProfile
     }
 
     private var filteredProviders: [HermesProviderDescriptor] {
@@ -68,11 +78,12 @@ struct HermesProfileEditorView: View {
                     )
                 }
             }
-            .navigationTitle(selectedProvider?.label ?? "New Hermes profile")
+            .navigationTitle(selectedProvider?.label ?? (isEditing ? "Edit Hermes profile" : "New Hermes profile"))
         }
         .frame(width: 900, height: 620)
         .task { await loadCatalog() }
         .onChange(of: selectedProviderID) { _, _ in
+            guard !isLoading else { return }
             model = ""
             values = [:]
             modelLoadError = nil
@@ -88,15 +99,28 @@ struct HermesProfileEditorView: View {
             VStack(alignment: .leading, spacing: 20) {
                 GroupBox("Hermes profile") {
                     VStack(alignment: .leading, spacing: 10) {
-                        TextField("Profile name, for example GLM 5.2", text: $profileName)
-                            .textFieldStyle(.roundedBorder)
+                        if isEditing {
+                            LabeledContent("Profile name") {
+                                Text(profileName).font(.body.weight(.medium))
+                            }
+                        } else {
+                            TextField("Profile name, for example GLM 5.2", text: $profileName)
+                                .textFieldStyle(.roundedBorder)
+                        }
                         LabeledContent("Profile ID") {
                             Text(profileID.isEmpty ? "Created from the profile name" : profileID)
                                 .font(.caption.monospaced())
                                 .foregroundStyle(.secondary)
                         }
-                        Toggle("Create a Mission Control agent for this profile", isOn: $createAgent)
-                        Text("The agent remains permanently associated with this provider and model.")
+                        if isEditing, editingProfile?.isDefault != true {
+                            Label("The Mission Control agent will be synchronized", systemImage: "link")
+                                .font(.callout)
+                        } else if !isEditing {
+                            Toggle("Create a Mission Control agent for this profile", isOn: $createAgent)
+                        }
+                        Text(isEditing
+                             ? "The profile name and ID stay fixed so existing Mission Control tasks keep their association. Provider, model, endpoint, and credentials can be changed."
+                             : "The agent remains permanently associated with this provider and model.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -125,7 +149,7 @@ struct HermesProfileEditorView: View {
                                 }
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(store.isBusy || !HermesProfileID.isValid(profileID))
+                            .disabled(store.isBusy || !isValidProfileID)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 6)
@@ -236,7 +260,7 @@ struct HermesProfileEditorView: View {
                     }
                     Spacer()
                     Button("Cancel") { dismiss() }
-                    Button("Create Profile & Agent") {
+                    Button(isEditing ? "Save Changes" : "Create Profile & Agent") {
                         Task {
                             if await store.configureHermesProfile(
                                 provider: provider,
@@ -260,12 +284,17 @@ struct HermesProfileEditorView: View {
     }
 
     private func canSave(_ provider: HermesProviderDescriptor) -> Bool {
-        HermesProfileID.isValid(profileID)
+        isValidProfileID
+            && !profileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && provider.fields.filter(\.required).allSatisfy {
                 !(values[$0.name] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     || ($0.secret && store.hasHermesCredential(provider: provider.slug, field: $0.name))
             }
+    }
+
+    private var isValidProfileID: Bool {
+        profileID == HermesProfileID.defaultProfile || HermesProfileID.isValid(profileID)
     }
 
     private func valueBinding(for name: String) -> Binding<String> {
@@ -279,11 +308,23 @@ struct HermesProfileEditorView: View {
         do {
             try EngineInstaller.synchronizeBundledEngine()
             providers = try await HermesConfigurationService.loadProviders()
-            selectedProviderID = providers.first?.id
+            if let editingProfile {
+                profileName = editingProfile.displayName
+                model = editingProfile.model
+                createAgent = !editingProfile.isDefault
+                selectedProviderID = providers.first(where: { $0.id == editingProfile.provider })?.id
+                    ?? providers.first?.id
+                availableModels = selectedProvider?.models ?? []
+            } else {
+                selectedProviderID = providers.first?.id
+            }
         } catch {
             loadError = error.localizedDescription
         }
         isLoading = false
+        if let provider = selectedProvider {
+            await refreshModels(provider)
+        }
     }
 
     private func refreshModels(_ provider: HermesProviderDescriptor) async {
@@ -296,7 +337,11 @@ struct HermesProfileEditorView: View {
                 profileID: HermesProfileID.isValid(profileID) ? profileID : HermesProfileID.defaultProfile
             )
             guard selectedProviderID == provider.id else { return }
-            availableModels = models
+            if !model.isEmpty && !models.contains(model) {
+                availableModels = [model] + models
+            } else {
+                availableModels = models
+            }
         } catch {
             guard selectedProviderID == provider.id else { return }
             availableModels = provider.models

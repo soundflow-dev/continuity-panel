@@ -4,6 +4,7 @@ struct HermesProfilesView: View {
     let store: EnvironmentStore
     @Environment(\.dismiss) private var dismiss
     @State private var showingNewProfile = false
+    @State private var profileBeingEdited: HermesProfile?
     @State private var profilePendingRemoval: HermesProfile?
 
     var body: some View {
@@ -50,6 +51,9 @@ struct HermesProfilesView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
+                        Button("Edit…") {
+                            profileBeingEdited = profile
+                        }
                         Button("Remove…", role: .destructive) {
                             profilePendingRemoval = profile
                         }
@@ -74,6 +78,11 @@ struct HermesProfilesView: View {
             Task { await store.refreshHermesProfiles() }
         }) {
             HermesProfileEditorView(store: store)
+        }
+        .sheet(item: $profileBeingEdited, onDismiss: {
+            Task { await store.refreshHermesProfiles() }
+        }) { profile in
+            HermesProfileEditorView(store: store, editingProfile: profile)
         }
         .alert(
             "Remove Hermes profile?",

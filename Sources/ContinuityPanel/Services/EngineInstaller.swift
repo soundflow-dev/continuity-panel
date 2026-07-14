@@ -11,7 +11,7 @@ enum EngineInstallerError: LocalizedError {
 enum EngineInstaller {
     private static let executableNames = [
         "install.sh", "Install ContinuityPanel.command", "add-agent", "codex", "hermes",
-        "delete-project", "enqueue-project-analysis", "ensure-hermes-agent", "import-project", "install-service",
+        "check-hermes-profile-idle", "delete-project", "enqueue-project-analysis", "ensure-hermes-agent", "import-project", "install-service",
         "list-project-agents", "mc", "new-project", "remove-hermes-profile", "run-mission-control", "start", "status",
         "stop", "sync-projects"
     ]
