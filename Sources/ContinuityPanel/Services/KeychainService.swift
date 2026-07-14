@@ -41,6 +41,23 @@ enum KeychainService {
         return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
     }
 
+    static func load(account: String) throws -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        if status == errSecItemNotFound { return nil }
+        guard status == errSecSuccess, let data = item as? Data else {
+            throw KeychainServiceError.unexpectedStatus(status)
+        }
+        return String(data: data, encoding: .utf8)
+    }
+
     static func remove(account: String) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

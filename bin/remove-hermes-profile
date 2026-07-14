@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${CONTINUITYPANEL_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+TRASH_DIR="${CONTINUITYPANEL_TRASH_DIR:-$HOME/.Trash}"
+PROFILE_ID="${1:-}"
+PROFILE_DIR="$ROOT/home/.hermes/profiles/$PROFILE_ID"
+DB="$ROOT/mission-control/.data/mission-control.db"
+
+if [[ ! "$PROFILE_ID" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+  echo "Usage: $0 profile-id" >&2
+  exit 2
+fi
+if [[ ! -d "$PROFILE_DIR" ]]; then
+  echo "Hermes profile does not exist: $PROFILE_ID" >&2
+  exit 1
+fi
+
+sql_escape() {
+  printf '%s' "$1" | sed "s/'/''/g"
+}
+escaped_profile="$(sql_escape "$PROFILE_ID")"
+agent_name=""
+
+if [[ -f "$DB" ]] && [[ "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='agents';")" == "1" ]]; then
+  agent_name="$(sqlite3 "$DB" "SELECT name FROM agents WHERE workspace_id=1 AND json_extract(config, '$.hermesProfile')='$escaped_profile' LIMIT 1;")"
+  if [[ -n "$agent_name" ]]; then
+    escaped_agent="$(sql_escape "$agent_name")"
+    active_tasks="$(sqlite3 "$DB" "SELECT count(*) FROM tasks WHERE workspace_id=1 AND assigned_to='$escaped_agent' AND status IN ('assigned','in_progress');" 2>/dev/null || printf '0')"
+    if [[ "$active_tasks" != "0" ]]; then
+      echo "Finish or reassign the active tasks for $agent_name before removing this profile." >&2
+      exit 1
+    fi
+  fi
+fi
+
+mkdir -p "$TRASH_DIR"
+destination="$TRASH_DIR/ContinuityPanel-Hermes-$PROFILE_ID"
+if [[ -e "$destination" ]]; then
+  destination="$TRASH_DIR/ContinuityPanel-Hermes-$PROFILE_ID-$(date +%Y%m%d-%H%M%S)"
+fi
+
+if [[ -n "$agent_name" ]]; then
+  escaped_agent="$(sql_escape "$agent_name")"
+  sqlite3 "$DB" "
+    PRAGMA busy_timeout=5000;
+    UPDATE agents SET hidden=1, status='offline', updated_at=unixepoch()
+    WHERE workspace_id=1 AND name='$escaped_agent';
+  " >/dev/null
+fi
+
+if ! mv "$PROFILE_DIR" "$destination"; then
+  if [[ -n "$agent_name" ]]; then
+    sqlite3 "$DB" "UPDATE agents SET hidden=0, status='idle', updated_at=unixepoch() WHERE workspace_id=1 AND name='$escaped_agent';" >/dev/null || true
+  fi
+  echo "Could not move the Hermes profile to Trash." >&2
+  exit 1
+fi
+
+echo "Moved Hermes profile $PROFILE_ID to Trash. Shared provider credentials were kept."

@@ -86,6 +86,36 @@ jobs:
           test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT status||':'||assigned_to||':'||project_ticket_no FROM tasks;")" = "assigned:Hermes Developer:1"
           AGENTS_JSON="$(CONTINUITYPANEL_ROOT="$ROOT" ./bin/list-project-agents)"
           [[ "$AGENTS_JSON" == *'"runtime":"hermes"'* ]]
+      - name: Validate Hermes profile agents
+        run: |
+          ROOT="$RUNNER_TEMP/hermes-profiles"
+          mkdir -p "$ROOT/home/.hermes/profiles/glm-nim" "$ROOT/mission-control/.data"
+          touch "$ROOT/home/.hermes/profiles/glm-nim/config.yaml"
+          sqlite3 "$ROOT/mission-control/.data/mission-control.db" "
+            CREATE TABLE agents (
+              id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, role TEXT NOT NULL,
+              session_key TEXT, soul_content TEXT, status TEXT, last_seen INTEGER, last_activity TEXT,
+              created_at INTEGER, updated_at INTEGER, config TEXT, workspace_id INTEGER NOT NULL DEFAULT 1,
+              source TEXT, content_hash TEXT, workspace_path TEXT, hidden INTEGER NOT NULL DEFAULT 0,
+              working_memory TEXT DEFAULT '', runtime_type TEXT
+            );
+            CREATE TABLE tasks (
+              id INTEGER PRIMARY KEY, workspace_id INTEGER NOT NULL DEFAULT 1,
+              assigned_to TEXT, status TEXT
+            );
+          "
+          CONTINUITYPANEL_ROOT="$ROOT" ./bin/ensure-hermes-agent glm-nim "GLM 5.2" nvidia z-ai/glm-5.2
+          CONTINUITYPANEL_ROOT="$ROOT" ./bin/ensure-hermes-agent glm-nim "GLM 5.2" nvidia z-ai/glm-5.2
+          test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT count(*) FROM agents;")" = "1"
+          test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT json_extract(config, '$.hermesProfile') FROM agents;")" = "glm-nim"
+          test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT json_extract(config, '$.modelName') FROM agents;")" = "z-ai/glm-5.2"
+          sqlite3 "$ROOT/mission-control/.data/mission-control.db" "INSERT INTO tasks(id, assigned_to, status) VALUES(1, 'Hermes GLM 5.2', 'assigned');"
+          ! CONTINUITYPANEL_ROOT="$ROOT" CONTINUITYPANEL_TRASH_DIR="$ROOT/trash" ./bin/remove-hermes-profile glm-nim
+          test -d "$ROOT/home/.hermes/profiles/glm-nim"
+          sqlite3 "$ROOT/mission-control/.data/mission-control.db" "DELETE FROM tasks;"
+          CONTINUITYPANEL_ROOT="$ROOT" CONTINUITYPANEL_TRASH_DIR="$ROOT/trash" ./bin/remove-hermes-profile glm-nim
+          test -d "$ROOT/trash/ContinuityPanel-Hermes-glm-nim"
+          test "$(sqlite3 "$ROOT/mission-control/.data/mission-control.db" "SELECT hidden FROM agents;")" = "1"
       - name: Validate Mission Control integration patch
         run: |
           git clone --depth 1 --branch v2.1.0 https://github.com/builderz-labs/mission-control.git "$RUNNER_TEMP/mission-control"
@@ -94,6 +124,8 @@ jobs:
           git -C "$RUNNER_TEMP/mission-control" apply --check "$GITHUB_WORKSPACE/patches/mission-control-local-runtime-status.patch"
           git -C "$RUNNER_TEMP/mission-control" apply "$GITHUB_WORKSPACE/patches/mission-control-local-runtime-status.patch"
           git -C "$RUNNER_TEMP/mission-control" apply --check "$GITHUB_WORKSPACE/patches/mission-control-onboarding-once.patch"
+          git -C "$RUNNER_TEMP/mission-control" apply "$GITHUB_WORKSPACE/patches/mission-control-onboarding-once.patch"
+          git -C "$RUNNER_TEMP/mission-control" apply --check "$GITHUB_WORKSPACE/patches/mission-control-hermes-profiles.patch"
       - name: Test native app
         run: swift test
       - name: Package native app
@@ -108,4 +140,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ContinuityPanel-macOS
-          path: dist/ContinuityPanel-0.4.6-macos.zip
+          path: dist/ContinuityPanel-0.5.0-macos.zip

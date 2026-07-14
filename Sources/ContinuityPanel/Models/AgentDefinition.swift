@@ -123,6 +123,33 @@ struct HermesProviderDescriptor: Codable, Hashable, Identifiable, Sendable {
     var hasModelCatalog: Bool { !models.isEmpty }
 }
 
+struct HermesProfile: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let displayName: String
+    let provider: String
+    let model: String
+    let isDefault: Bool
+}
+
+enum HermesProfileID {
+    static let defaultProfile = "__default__"
+
+    static func suggested(from value: String) -> String {
+        let folded = value.folding(options: [.diacriticInsensitive, .widthInsensitive], locale: .current)
+        let replaced = folded.lowercased().replacingOccurrences(
+            of: "[^a-z0-9_-]+",
+            with: "-",
+            options: .regularExpression
+        )
+        return String(replaced.trimmingCharacters(in: CharacterSet(charactersIn: "_-")).prefix(64))
+    }
+
+    static func isValid(_ value: String) -> Bool {
+        guard !value.isEmpty, value.count <= 64, value != defaultProfile else { return false }
+        return value.range(of: "^[a-z0-9][a-z0-9_-]*$", options: .regularExpression) != nil
+    }
+}
+
 enum CloudProvider: String, CaseIterable, Identifiable, Sendable {
     case openAI
     case anthropic

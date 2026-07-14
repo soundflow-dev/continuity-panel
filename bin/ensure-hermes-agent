@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${CONTINUITYPANEL_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+PROFILE_ID="${1:-}"
+DISPLAY_NAME="${2:-}"
+PROVIDER="${3:-}"
+MODEL="${4:-}"
+DB="$ROOT/mission-control/.data/mission-control.db"
+
+if [[ ! "$PROFILE_ID" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || [[ -z "$DISPLAY_NAME" ]] || [[ "$DISPLAY_NAME" == *$'\n'* ]]; then
+  echo "Usage: $0 profile-id display-name provider model" >&2
+  exit 2
+fi
+if [[ ! -f "$ROOT/home/.hermes/profiles/$PROFILE_ID/config.yaml" ]]; then
+  echo "Hermes profile is not configured: $PROFILE_ID" >&2
+  exit 1
+fi
+if [[ ! -f "$DB" ]] || [[ "$(sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='agents';")" != "1" ]]; then
+  echo "Mission Control is not ready to create the profile agent." >&2
+  exit 1
+fi
+
+sql_escape() {
+  printf '%s' "$1" | sed "s/'/''/g"
+}
+
+escaped_profile="$(sql_escape "$PROFILE_ID")"
+escaped_provider="$(sql_escape "$PROVIDER")"
+escaped_model="$(sql_escape "$MODEL")"
+agent_name="Hermes $DISPLAY_NAME"
+escaped_name="$(sql_escape "$agent_name")"
+
+existing="$(sqlite3 "$DB" "SELECT id FROM agents WHERE workspace_id=1 AND json_extract(config, '$.hermesProfile')='$escaped_profile' LIMIT 1;")"
+if [[ -n "$existing" ]]; then
+  sqlite3 "$DB" "
+    PRAGMA busy_timeout=5000;
+    UPDATE agents SET
+      config=json_set(COALESCE(config, '{}'), '$.dispatchRuntime', 'hermes', '$.hermesProfile', '$escaped_profile', '$.provider', '$escaped_provider', '$.modelName', '$escaped_model'),
+      runtime_type='hermes', status='idle', updated_at=unixepoch()
+    WHERE id=$existing AND workspace_id=1;
+  " >/dev/null
+  echo "Updated Hermes agent for profile $PROFILE_ID."
+  exit 0
+fi
+
+if [[ -n "$(sqlite3 "$DB" "SELECT id FROM agents WHERE workspace_id=1 AND name='$escaped_name' LIMIT 1;")" ]]; then
+  agent_name="$agent_name ($PROFILE_ID)"
+  escaped_name="$(sql_escape "$agent_name")"
+fi
+
+sqlite3 "$DB" "
+  PRAGMA busy_timeout=5000;
+  INSERT INTO agents (
+    name, role, soul_content, status, created_at, updated_at, config, workspace_id, source, hidden, runtime_type
+  ) VALUES (
+    '$escaped_name', 'developer',
+    'You are a software developer. Read AGENTS.md and PROJECT_STATE.md before changing a project, preserve existing work, verify changes, and update PROJECT_STATE.md before handoff.',
+    'idle', unixepoch(), unixepoch(),
+    json_object('dispatchRuntime', 'hermes', 'hermesProfile', '$escaped_profile', 'provider', '$escaped_provider', 'modelName', '$escaped_model'),
+    1, 'continuitypanel-profile', 0, 'hermes'
+  );
+" >/dev/null
+
+echo "Created Mission Control agent $agent_name."

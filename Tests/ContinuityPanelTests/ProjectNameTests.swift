@@ -15,6 +15,14 @@ import Testing
     #expect(ProjectName.suggested(from: "../../escape") == "escape")
 }
 
+@Test func hermesProfileIdentifiersAreStableAndSafe() {
+    #expect(HermesProfileID.suggested(from: "GLM 5.2 — NVIDIA NIM") == "glm-5-2-nvidia-nim")
+    #expect(HermesProfileID.suggested(from: "Qwén Coder") == "qwen-coder")
+    #expect(HermesProfileID.isValid("mimo-nim"))
+    #expect(!HermesProfileID.isValid("../escape"))
+    #expect(!HermesProfileID.isValid(HermesProfileID.defaultProfile))
+}
+
 @Test func builtInCatalogHasBroadCoverage() {
     #expect(AgentKind.allCases.count >= 10)
     #expect(CloudProvider.allCases.count >= 10)

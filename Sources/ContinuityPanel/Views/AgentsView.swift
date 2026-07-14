@@ -3,7 +3,8 @@ import SwiftUI
 struct AgentsView: View {
     let store: EnvironmentStore
     @State private var selectedTab = AgentCatalogTab.agents
-    @State private var hermesSheet = false
+    @State private var showingHermesProfiles = false
+    @State private var showingHermesEditor = false
     @State private var providerToConnect: CloudProvider?
 
     var body: some View {
@@ -18,9 +19,16 @@ struct AgentsView: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 310), spacing: 14)], spacing: 14) {
                     if selectedTab == .agents {
                         ForEach(AgentKind.allCases) { agent in
-                            AgentCard(agent: agent, store: store) {
-                                if agent == .hermes { hermesSheet = true }
-                            }
+                            AgentCard(
+                                agent: agent,
+                                store: store,
+                                addHermesProfile: {
+                                    showingHermesEditor = true
+                                },
+                                manageHermesProfiles: {
+                                    showingHermesProfiles = true
+                                }
+                            )
                         }
                     } else {
                         ForEach(CloudProvider.allCases) { provider in
@@ -33,8 +41,13 @@ struct AgentsView: View {
                 .padding([.horizontal, .bottom])
             }
         }
-        .sheet(isPresented: $hermesSheet) {
-            HermesConfigurationView(store: store)
+        .sheet(isPresented: $showingHermesProfiles) {
+            HermesProfilesView(store: store)
+        }
+        .sheet(isPresented: $showingHermesEditor, onDismiss: {
+            Task { await store.refreshHermesProfiles() }
+        }) {
+            HermesProfileEditorView(store: store)
         }
         .sheet(item: $providerToConnect) { provider in
             ProviderConnectionView(provider: provider, store: store)
@@ -52,7 +65,8 @@ private enum AgentCatalogTab: String, CaseIterable, Identifiable {
 private struct AgentCard: View {
     let agent: AgentKind
     let store: EnvironmentStore
-    let configureHermes: () -> Void
+    let addHermesProfile: () -> Void
+    let manageHermesProfiles: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -77,7 +91,9 @@ private struct AgentCard: View {
                     if agent == .codex {
                         Button("Sign in") { Task { await store.signInToCodex() } }
                     } else if agent == .hermes {
-                        Button("Choose provider & model", action: configureHermes)
+                        Button("Add Profile", action: addHermesProfile)
+                            .buttonStyle(.borderedProminent)
+                        Button("Manage Profiles", action: manageHermesProfiles)
                     } else {
                         Text("Configuration adapter ready for the provider catalog.")
                             .font(.caption)
