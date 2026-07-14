@@ -2,10 +2,11 @@
 """Discover a provider's live model catalog without exposing credentials."""
 
 import json
+import os
+import re
 import sys
 
-from hermes_cli.models import _PROVIDER_MODELS
-from providers import get_provider_profile
+from hermes_cli.models import cached_provider_model_ids
 
 
 def unique(values):
@@ -27,22 +28,16 @@ def main():
     if not provider_id or not isinstance(environment, dict):
         raise ValueError("Provider and environment are required")
 
-    fallback = unique(_PROVIDER_MODELS.get(provider_id, []))
-    profile = get_provider_profile(provider_id)
-    if profile is None:
-        print(json.dumps(fallback))
-        return
+    for name, value in environment.items():
+        name = str(name).strip()
+        if name == "baseURL" or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+            continue
+        value = str(value or "").strip()
+        if value:
+            os.environ[name] = value
 
-    api_key = ""
-    for name in profile.env_vars:
-        candidate = str(environment.get(name) or "").strip()
-        if candidate:
-            api_key = candidate
-            break
-
-    base_url = str(environment.get("baseURL") or "").strip() or profile.base_url
-    live = profile.fetch_models(api_key=api_key, base_url=base_url or None)
-    print(json.dumps(unique(live) if live else fallback))
+    models = cached_provider_model_ids(provider_id, force_refresh=True)
+    print(json.dumps(unique(models)))
 
 
 if __name__ == "__main__":

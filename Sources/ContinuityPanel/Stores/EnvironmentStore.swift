@@ -153,7 +153,8 @@ final class EnvironmentStore {
 
     func loadHermesModels(
         provider: HermesProviderDescriptor,
-        environment: [String: String]
+        environment: [String: String],
+        profileID: String
     ) async throws -> [String] {
         var resolvedEnvironment = environment
         for field in provider.fields where field.secret {
@@ -170,7 +171,10 @@ final class EnvironmentStore {
         }
         return try await HermesConfigurationService.loadModels(
             provider: provider,
-            environment: resolvedEnvironment
+            environment: resolvedEnvironment,
+            profileID: profileID == HermesProfileID.defaultProfile || HermesProfileID.isValid(profileID)
+                ? profileID
+                : HermesProfileID.defaultProfile
         )
     }
 
