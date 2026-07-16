@@ -156,6 +156,8 @@ jobs:
           git -C "$RUNNER_TEMP/mission-control" apply "$GITHUB_WORKSPACE/patches/mission-control-task-controls.patch"
           git -C "$RUNNER_TEMP/mission-control" apply --check "$GITHUB_WORKSPACE/patches/mission-control-task-delete-state.patch"
           git -C "$RUNNER_TEMP/mission-control" apply "$GITHUB_WORKSPACE/patches/mission-control-task-delete-state.patch"
+          git -C "$RUNNER_TEMP/mission-control" apply --check "$GITHUB_WORKSPACE/patches/mission-control-task-retry.patch"
+          git -C "$RUNNER_TEMP/mission-control" apply "$GITHUB_WORKSPACE/patches/mission-control-task-retry.patch"
       - name: Test native app
         run: swift test
       - name: Package native app
@@ -170,4 +172,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ContinuityPanel-macOS
-          path: dist/ContinuityPanel-0.5.8-macos.zip
+          path: dist/ContinuityPanel-0.5.9-macos.zip
