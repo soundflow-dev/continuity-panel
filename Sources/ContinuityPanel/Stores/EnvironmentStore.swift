@@ -11,9 +11,13 @@ final class EnvironmentStore {
     private(set) var hermesProfiles: [HermesProfile] = []
     private(set) var activity: [ActivityEntry] = []
     private(set) var connectedProviders: Set<CloudProvider> = []
+    private(set) var hermesUpdateStatus: HermesUpdateStatus?
+    private(set) var hermesUpdateNotice: String?
+    private(set) var isCheckingHermesUpdate = false
     private(set) var isBusy = false
     private(set) var busyMessage = ""
     var lastError: String?
+    private var checkedHermesUpdatesThisLaunch = false
 
     func refresh() async {
         let fileManager = FileManager.default
@@ -29,6 +33,50 @@ final class EnvironmentStore {
         projects = loadProjects()
         await refreshProjectAgents()
         await refreshHermesProfiles()
+        if state.isInstalled(.hermes), !checkedHermesUpdatesThisLaunch {
+            checkedHermesUpdatesThisLaunch = true
+            await checkHermesUpdates(reportErrors: false, notify: true)
+        }
+    }
+
+    func checkHermesUpdates(reportErrors: Bool = true, notify: Bool = false) async {
+        guard state.isInstalled(.hermes), !isCheckingHermesUpdate else { return }
+        isCheckingHermesUpdate = true
+        defer { isCheckingHermesUpdate = false }
+
+        do {
+            try EngineInstaller.synchronizeBundledEngine()
+            let result = try await runScript("bin/update-hermes", arguments: ["check"])
+            guard result.succeeded, let data = result.output.data(using: .utf8) else {
+                throw StoreError.commandFailed(result.output)
+            }
+            let status = try JSONDecoder().decode(HermesUpdateStatus.self, from: data)
+            hermesUpdateStatus = status
+            if notify, status.stableAvailable || status.latestAvailable {
+                hermesUpdateNotice = status.notificationMessage
+            }
+        } catch {
+            if reportErrors { lastError = error.localizedDescription }
+        }
+    }
+
+    func updateHermes(channel: HermesUpdateChannel) async -> Bool {
+        var updated = false
+        await perform("Updating Hermes \(channel.title)…", success: "Hermes updated to \(channel.title)") {
+            try EngineInstaller.synchronizeBundledEngine()
+            let result = try await self.runScript("bin/update-hermes", arguments: ["install", channel.rawValue])
+            updated = result.succeeded
+            return result
+        }
+        if updated {
+            hermesUpdateNotice = nil
+            await checkHermesUpdates(reportErrors: false)
+        }
+        return updated
+    }
+
+    func dismissHermesUpdateNotice() {
+        hermesUpdateNotice = nil
     }
 
     func installEnvironment() async {

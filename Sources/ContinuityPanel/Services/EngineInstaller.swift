@@ -13,7 +13,7 @@ enum EngineInstaller {
         "install.sh", "Install ContinuityPanel.command", "add-agent", "codex", "hermes",
         "check-hermes-profile-idle", "delete-project", "enqueue-project-analysis", "ensure-hermes-agent", "import-project", "install-service",
         "list-project-agents", "mc", "new-project", "remove-hermes-profile", "run-mission-control", "start", "status",
-        "stop", "sync-projects"
+        "stop", "sync-projects", "update-hermes"
     ]
 
     static func synchronizeBundledEngine() throws {

@@ -5,6 +5,7 @@ struct AgentsView: View {
     @State private var selectedTab = AgentCatalogTab.agents
     @State private var showingHermesProfiles = false
     @State private var showingHermesEditor = false
+    @State private var showingHermesUpdater = false
     @State private var providerToConnect: CloudProvider?
 
     var body: some View {
@@ -27,6 +28,9 @@ struct AgentsView: View {
                                 },
                                 manageHermesProfiles: {
                                     showingHermesProfiles = true
+                                },
+                                updateHermes: {
+                                    showingHermesUpdater = true
                                 }
                             )
                         }
@@ -49,6 +53,9 @@ struct AgentsView: View {
         }) {
             HermesProfileEditorView(store: store)
         }
+        .sheet(isPresented: $showingHermesUpdater) {
+            HermesUpdateView(store: store)
+        }
         .sheet(item: $providerToConnect) { provider in
             ProviderConnectionView(provider: provider, store: store)
         }
@@ -67,6 +74,7 @@ private struct AgentCard: View {
     let store: EnvironmentStore
     let addHermesProfile: () -> Void
     let manageHermesProfiles: () -> Void
+    let updateHermes: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -86,6 +94,16 @@ private struct AgentCard: View {
                         .foregroundStyle(.green)
                 }
             }
+            if agent == .hermes,
+               let update = store.hermesUpdateStatus,
+               update.stableAvailable || update.latestAvailable {
+                Label(
+                    update.stableAvailable ? "Stable update available" : "\(update.latestCommitsBehind) newer upstream changes available",
+                    systemImage: "arrow.down.circle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.blue)
+            }
             HStack {
                 if store.state.isInstalled(agent) {
                     if agent == .codex {
@@ -94,6 +112,7 @@ private struct AgentCard: View {
                         Button("Add Profile", action: addHermesProfile)
                             .buttonStyle(.borderedProminent)
                         Button("Manage Profiles", action: manageHermesProfiles)
+                        Button("Update…", action: updateHermes)
                     } else {
                         Text("Configuration adapter ready for the provider catalog.")
                             .font(.caption)

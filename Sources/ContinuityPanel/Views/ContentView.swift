@@ -31,14 +31,36 @@ struct ContentView: View {
                 }
             }
         }
-        .alert("ContinuityPanel", isPresented: errorBinding) {
-            Button("OK") { store.lastError = nil }
+        .alert(alertTitle, isPresented: alertBinding) {
+            if store.lastError != nil {
+                Button("OK") { store.lastError = nil }
+            } else {
+                Button("Later", role: .cancel) { store.dismissHermesUpdateNotice() }
+                Button("Open Agents & Models") {
+                    store.dismissHermesUpdateNotice()
+                    selection = .agents
+                }
+            }
         } message: {
-            Text(store.lastError ?? "Unknown error")
+            Text(store.lastError ?? store.hermesUpdateNotice ?? "Unknown error")
         }
     }
 
-    private var errorBinding: Binding<Bool> {
-        Binding(get: { store.lastError != nil }, set: { if !$0 { store.lastError = nil } })
+    private var alertTitle: String {
+        store.lastError != nil ? "ContinuityPanel" : "Hermes Update Available"
+    }
+
+    private var alertBinding: Binding<Bool> {
+        Binding(
+            get: { store.lastError != nil || store.hermesUpdateNotice != nil },
+            set: { presented in
+                guard !presented else { return }
+                if store.lastError != nil {
+                    store.lastError = nil
+                } else {
+                    store.dismissHermesUpdateNotice()
+                }
+            }
+        )
     }
 }
