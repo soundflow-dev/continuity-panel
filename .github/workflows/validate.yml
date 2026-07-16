@@ -172,4 +172,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ContinuityPanel-macOS
-          path: dist/ContinuityPanel-0.5.9-macos.zip
+          path: dist/ContinuityPanel-0.6.0-macos.zip

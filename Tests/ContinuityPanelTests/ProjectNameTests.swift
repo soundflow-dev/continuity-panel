@@ -1,6 +1,22 @@
 import Testing
 @testable import ContinuityPanel
 
+@Test func hermesUpdateChannelsReportAvailability() {
+    let status = HermesUpdateStatus(
+        installedVersion: "Hermes Agent v0.18.2",
+        installedCommit: "old",
+        stableTag: "v2026.7.7.2",
+        stableAvailable: false,
+        latestCommit: "new",
+        latestCommitsBehind: 1024,
+        latestAvailable: true
+    )
+
+    #expect(!status.hasUpdate(for: .stable))
+    #expect(status.hasUpdate(for: .latest))
+    #expect(status.notificationMessage.contains("1024"))
+}
+
 @Test func projectNameValidation() {
     #expect(ProjectName.isValid("my-app"))
     #expect(ProjectName.isValid("App_2026"))

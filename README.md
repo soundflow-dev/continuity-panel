@@ -18,6 +18,7 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 - Dynamic Hermes provider catalog sourced from the installed Hermes version, including API keys, OAuth accounts, cloud subscriptions, AWS, Vertex AI, local services, and custom endpoints.
 - Multiple isolated Hermes profiles, each permanently bound to its own provider and model, with reusable provider credentials from macOS Keychain.
 - Resilient Hermes execution with activity-aware timeouts, visible progress, provider-error detection, and exponential retry backoff.
+- Automatic Hermes update checks at app launch, with user-confirmed Stable or experimental Latest/Main installation and pre-update backups.
 - Working task controls in the embedded dashboard: stop active Codex/Hermes runs and delete tasks safely after confirmation.
 - Separate cloud-provider catalog for OpenAI, Anthropic, OpenRouter, Google, Z.AI/GLM, Mistral, Groq, xAI, DeepSeek, and Moonshot.
 - Local Mission Control service managed by `launchd`.
@@ -35,7 +36,7 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 
 ## Install the app
 
-Download `ContinuityPanel-0.5.9-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
+Download `ContinuityPanel-0.6.0-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
 
 1. Select **Install Environment** in the app.
 2. Create the local Mission Control administrator when the embedded setup appears.
@@ -110,6 +111,17 @@ API credentials are saved by provider and field in macOS Keychain. When another 
 Long Hermes jobs are monitored through profile activity rather than being stopped after a fixed ten minutes. The default inactivity limit is 15 minutes and the hard runtime limit is 45 minutes; advanced users can override them with `MC_HERMES_INACTIVITY_TIMEOUT_MS` and `MC_HERMES_MAX_RUNTIME_MS` in Mission Control's `.env`. HTTP 429 and provider 5xx responses are recorded as failures and retried with exponential backoff instead of being presented as completed work. In local mode, quality review prefers the authenticated Codex CLI and falls back to another configured runtime.
 
 Use **Manage Profiles → Remove…** to remove a named profile. ContinuityPanel refuses removal while its agent has active work, hides the corresponding Mission Control agent, and moves the profile directory to the macOS Trash. Shared provider credentials remain in Keychain because other profiles may still use them. The original shared/default Hermes configuration is preserved.
+
+### Hermes updates
+
+ContinuityPanel checks the official Hermes Git repository once whenever the app opens. If newer code exists, it displays a notice and an update badge under **Agents & Models → Hermes Agent**. Updates are never installed automatically.
+
+Select **Update…** to choose a channel:
+
+- **Stable** is recommended and follows published Hermes releases.
+- **Latest / Main** follows the newest upstream code and can contain fixes before the next release, but may also introduce regressions.
+
+Before changing Hermes, ContinuityPanel refuses to proceed while a Hermes task is active and saves a restricted-permission backup under its Application Support folder. If dependency installation fails, it restores the previous Hermes revision. Projects and Mission Control tasks are not changed by a Hermes update.
 
 ## Mission Control service
 

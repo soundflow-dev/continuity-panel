@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="${CONTINUITYPANEL_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+HERMES_REPO="$ROOT/home/.hermes/hermes-agent"
+HERMES_BIN="$HERMES_REPO/venv/bin/hermes"
+UV="$ROOT/runtime/uv-bin/uv"
+DB="$ROOT/mission-control/.data/mission-control.db"
+COMMAND="${1:-check}"
+CHANNEL="${2:-stable}"
+
+require_installation() {
+  if [[ ! -d "$HERMES_REPO/.git" ]] || [[ ! -x "$HERMES_BIN" ]]; then
+    echo "Hermes is not installed in ContinuityPanel." >&2
+    exit 1
+  fi
+}
+
+fetch_updates() {
+  git -C "$HERMES_REPO" fetch --quiet origin main --tags
+}
+
+latest_stable_tag() {
+  git -C "$HERMES_REPO" tag --list 'v*' --sort=-version:refname | head -n 1
+}
+
+installed_version() {
+  "$HERMES_BIN" --version 2>/dev/null | sed -n '1s/^[[:space:]]*//p'
+}
+
+check_updates() {
+  fetch_updates
+  local current_commit stable_tag stable_commit latest_commit version behind
+  current_commit="$(git -C "$HERMES_REPO" rev-parse HEAD)"
+  stable_tag="$(latest_stable_tag)"
+  stable_commit="$(git -C "$HERMES_REPO" rev-list -n 1 "$stable_tag")"
+  latest_commit="$(git -C "$HERMES_REPO" rev-parse origin/main)"
+  version="$(installed_version)"
+  behind="$(git -C "$HERMES_REPO" rev-list --count "$current_commit..$latest_commit")"
+
+  /usr/bin/python3 - "$version" "$current_commit" "$stable_tag" "$stable_commit" "$latest_commit" "$behind" <<'PY'
+import json, sys
+version, current, stable_tag, stable_commit, latest, behind = sys.argv[1:]
+print(json.dumps({
+    "installedVersion": version,
+    "installedCommit": current,
+    "stableTag": stable_tag,
+    "stableAvailable": current != stable_commit,
+    "latestCommit": latest,
+    "latestCommitsBehind": int(behind),
+    "latestAvailable": current != latest,
+}))
+PY
+}
+
+ensure_idle() {
+  [[ -f "$DB" ]] || return 0
+  local has_agents has_tasks active
+  has_agents="$(sqlite3 "$DB" "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='agents';" 2>/dev/null || printf '0')"
+  has_tasks="$(sqlite3 "$DB" "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='tasks';" 2>/dev/null || printf '0')"
+  [[ "$has_agents" == "1" && "$has_tasks" == "1" ]] || return 0
+  active="$(sqlite3 "$DB" "
+    SELECT count(*) FROM tasks t
+    JOIN agents a ON a.name=t.assigned_to
+    WHERE t.status IN ('assigned','in_progress')
+      AND (a.runtime_type='hermes' OR json_extract(a.config, '$.dispatchRuntime')='hermes');
+  " 2>/dev/null || printf '0')"
+  if [[ "$active" != "0" ]]; then
+    echo "Hermes has $active active task(s). Stop, complete, or reassign them before updating." >&2
+    exit 1
+  fi
+}
+
+install_update() {
+  if [[ "$CHANNEL" != "stable" && "$CHANNEL" != "latest" ]]; then
+    echo "Usage: $0 install stable|latest" >&2
+    exit 2
+  fi
+  ensure_idle
+  fetch_updates
+
+  local previous target backup_dir backup_file
+  previous="$(git -C "$HERMES_REPO" rev-parse HEAD)"
+  backup_dir="$ROOT/backups/hermes"
+  backup_file="$backup_dir/before-update-$(date +%Y%m%d-%H%M%S).zip"
+  mkdir -p "$backup_dir"
+  chmod 700 "$backup_dir"
+  "$HERMES_BIN" backup --quiet --label "before-continuitypanel-update" --output "$backup_file"
+  chmod 600 "$backup_file"
+
+  if [[ "$CHANNEL" == "latest" ]]; then
+    target="origin/main"
+  else
+    target="$(latest_stable_tag)"
+  fi
+
+  echo "Updating Hermes to $target…"
+  if ! git -C "$HERMES_REPO" checkout --quiet --detach "$target"; then
+    echo "Could not switch Hermes to $target." >&2
+    exit 1
+  fi
+
+  export PATH="$ROOT/runtime/uv-bin:$PATH"
+  export UV_PYTHON_INSTALL_DIR="$ROOT/runtime/python"
+  if ! UV_PROJECT_ENVIRONMENT="$HERMES_REPO/venv" "$UV" sync --project "$HERMES_REPO" --extra all --locked; then
+    echo "Update failed. Restoring the previous Hermes revision…" >&2
+    git -C "$HERMES_REPO" checkout --quiet --detach "$previous"
+    UV_PROJECT_ENVIRONMENT="$HERMES_REPO/venv" "$UV" sync --project "$HERMES_REPO" --extra all --locked || true
+    exit 1
+  fi
+
+  echo "Hermes updated successfully. Backup: $backup_file"
+  installed_version
+}
+
+require_installation
+case "$COMMAND" in
+  check) check_updates ;;
+  install) install_update ;;
+  *) echo "Usage: $0 check | install stable|latest" >&2; exit 2 ;;
+esac
