@@ -1,0 +1,586 @@
+diff --git a/messages/ar.json b/messages/ar.json
+index bc3e98f..67c71de 100644
+--- a/messages/ar.json
++++ b/messages/ar.json
+@@ -807,6 +807,8 @@
+     "saveChanges": "حفظ التغييرات",
+     "edit": "تحرير",
+     "deleteTaskConfirm": "هل تريد حذف \"{title}\"؟",
++    "stopTask": "إيقاف",
++    "stopTaskConfirm": "هل تريد إيقاف \"{title}\"؟ سيتم إنهاء تشغيل الوكيل الحالي.",
+     "delete": "حذف",
+     "closeTaskDetails": "إغلاق تفاصيل المهمة",
+     "noDescription": "لا يوجد وصف",
+@@ -2196,4 +2198,4 @@
+     "unhealthy": "غير سليم",
+     "unreachable": "لا يمكن الوصول إليه"
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/messages/de.json b/messages/de.json
+index c2a6fdf..a5f893b 100644
+--- a/messages/de.json
++++ b/messages/de.json
+@@ -807,6 +807,8 @@
+     "saveChanges": "Änderungen speichern",
+     "edit": "Bearbeiten",
+     "deleteTaskConfirm": "\"{title}\" löschen?",
++    "stopTask": "Stoppen",
++    "stopTaskConfirm": "\"{title}\" stoppen? Die aktuelle Agentenausführung wird beendet.",
+     "delete": "Löschen",
+     "closeTaskDetails": "Aufgabendetails schließen",
+     "noDescription": "Keine Beschreibung",
+@@ -2196,4 +2198,4 @@
+     "unhealthy": "Ungesund",
+     "unreachable": "Nicht erreichbar"
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/messages/en.json b/messages/en.json
+index 065ebb0..8293388 100644
+--- a/messages/en.json
++++ b/messages/en.json
+@@ -812,6 +812,8 @@
+     "saveChanges": "Save Changes",
+     "edit": "Edit",
+     "deleteTaskConfirm": "Delete \"{title}\"?",
++    "stopTask": "Stop",
++    "stopTaskConfirm": "Stop \"{title}\"? The current agent run will be terminated.",
+     "delete": "Delete",
+     "closeTaskDetails": "Close task details",
+     "noDescription": "No description",
+diff --git a/messages/es.json b/messages/es.json
+index 769fc14..fc3fb6e 100644
+--- a/messages/es.json
++++ b/messages/es.json
+@@ -807,6 +807,8 @@
+     "saveChanges": "Guardar cambios",
+     "edit": "Editar",
+     "deleteTaskConfirm": "¿Eliminar \"{title}\"?",
++    "stopTask": "Detener",
++    "stopTaskConfirm": "¿Detener \"{title}\"? La ejecución actual del agente finalizará.",
+     "delete": "Eliminar",
+     "closeTaskDetails": "Cerrar detalles de tarea",
+     "noDescription": "Sin descripción",
+@@ -2196,4 +2198,4 @@
+     "unhealthy": "No saludable",
+     "unreachable": "Inaccesible"
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/messages/fr.json b/messages/fr.json
+index c201f86..aa723f7 100644
+--- a/messages/fr.json
++++ b/messages/fr.json
+@@ -807,6 +807,8 @@
+     "saveChanges": "Enregistrer les modifications",
+     "edit": "Modifier",
+     "deleteTaskConfirm": "Supprimer \"{title}\" ?",
++    "stopTask": "Arrêter",
++    "stopTaskConfirm": "Arrêter \"{title}\" ? L’exécution actuelle de l’agent sera interrompue.",
+     "delete": "Supprimer",
+     "closeTaskDetails": "Fermer les détails de la tâche",
+     "noDescription": "Aucune description",
+@@ -2196,4 +2198,4 @@
+     "unhealthy": "Non sain",
+     "unreachable": "Inaccessible"
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/messages/ja.json b/messages/ja.json
+index 5c2b695..22708dc 100644
+--- a/messages/ja.json
++++ b/messages/ja.json
+@@ -807,6 +807,8 @@
+     "saveChanges": "変更を保存",
+     "edit": "編集",
+     "deleteTaskConfirm": "「{title}」を削除しますか？",
++    "stopTask": "停止",
++    "stopTaskConfirm": "「{title}」を停止しますか？現在のエージェント実行は終了します。",
+     "delete": "削除",
+     "closeTaskDetails": "タスク詳細を閉じる",
+     "noDescription": "説明なし",
+@@ -2196,4 +2198,4 @@
+     "unhealthy": "異常",
+     "unreachable": "到達不能"
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/messages/ko.json b/messages/ko.json
+index 3f5c07b..e01faa6 100644
+--- a/messages/ko.json
++++ b/messages/ko.json
+@@ -807,6 +807,8 @@
+     "saveChanges": "변경 사항 저장",
+     "edit": "편집",
+     "deleteTaskConfirm": "\"{title}\"을(를) 삭제하시겠습니까?",
++    "stopTask": "중지",
++    "stopTaskConfirm": "\"{title}\"을(를) 중지하시겠습니까? 현재 에이전트 실행이 종료됩니다.",
+     "delete": "삭제",
+     "closeTaskDetails": "작업 세부 정보 닫기",
+     "noDescription": "설명 없음",
+@@ -2196,4 +2198,4 @@
+     "diagnosing": "Diagnosing...",
+     "notInstalled": "Not installed"
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/messages/pt.json b/messages/pt.json
+index bf47d13..be7d890 100644
+--- a/messages/pt.json
++++ b/messages/pt.json
+@@ -807,6 +807,8 @@
+     "saveChanges": "Salvar alterações",
+     "edit": "Editar",
+     "deleteTaskConfirm": "Excluir \"{title}\"?",
++    "stopTask": "Parar",
++    "stopTaskConfirm": "Parar \"{title}\"? A execução atual do agente será terminada.",
+     "delete": "Excluir",
+     "closeTaskDetails": "Fechar detalhes da tarefa",
+     "noDescription": "Sem descrição",
+@@ -2196,4 +2198,4 @@
+     "unhealthy": "Não saudável",
+     "unreachable": "Inacessível"
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/messages/ru.json b/messages/ru.json
+index 313961c..c4d3c60 100644
+--- a/messages/ru.json
++++ b/messages/ru.json
+@@ -807,6 +807,8 @@
+     "saveChanges": "Сохранить изменения",
+     "edit": "Редактировать",
+     "deleteTaskConfirm": "Удалить \"{title}\"?",
++    "stopTask": "Остановить",
++    "stopTaskConfirm": "Остановить \"{title}\"? Текущий запуск агента будет завершён.",
+     "delete": "Удалить",
+     "closeTaskDetails": "Закрыть детали задачи",
+     "noDescription": "Нет описания",
+@@ -2196,4 +2198,4 @@
+     "unhealthy": "Нездоров",
+     "unreachable": "Недоступен"
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/messages/zh.json b/messages/zh.json
+index 9674a31..0a7f135 100644
+--- a/messages/zh.json
++++ b/messages/zh.json
+@@ -1047,6 +1047,8 @@
+     "saveChanges": "保存更改",
+     "edit": "编辑",
+     "deleteTaskConfirm": "删除\"{title}\"？",
++    "stopTask": "停止",
++    "stopTaskConfirm": "停止\"{title}\"？当前智能体运行将被终止。",
+     "delete": "删除",
+     "closeTaskDetails": "关闭任务详情",
+     "noDescription": "无描述",
+@@ -2196,4 +2198,4 @@
+     "unhealthy": "不健康",
+     "unreachable": "不可达"
+   }
+-}
+\ No newline at end of file
++}
+diff --git a/src/app/api/tasks/[id]/cancel/route.ts b/src/app/api/tasks/[id]/cancel/route.ts
+new file mode 100644
+index 0000000..65390a5
+--- /dev/null
++++ b/src/app/api/tasks/[id]/cancel/route.ts
+@@ -0,0 +1,89 @@
++import { NextRequest, NextResponse } from 'next/server'
++import { getDatabase, db_helpers, type Task } from '@/lib/db'
++import { requireRole } from '@/lib/auth'
++import { mutationLimiter } from '@/lib/rate-limit'
++import { requireAgentTaskAccess, requireWorkspaceId } from '@/lib/enforcement/workspace-scope'
++import { cancelActiveTaskExecution } from '@/lib/task-dispatch'
++import { eventBus } from '@/lib/event-bus'
++import { logger } from '@/lib/logger'
++
++const STOPPABLE_STATUSES = new Set(['assigned', 'in_progress', 'review', 'quality_review'])
++
++/** POST /api/tasks/[id]/cancel - stop local execution and prevent retries. */
++export async function POST(
++  request: NextRequest,
++  { params }: { params: Promise<{ id: string }> },
++) {
++  const auth = requireRole(request, 'operator')
++  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
++
++  const rateCheck = mutationLimiter(request)
++  if (rateCheck) return rateCheck
++
++  try {
++    const taskId = Number.parseInt((await params).id, 10)
++    if (!Number.isFinite(taskId)) return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 })
++
++    const wsResult = requireWorkspaceId(auth.user)
++    if (!('workspaceId' in wsResult)) return wsResult.response
++    const { workspaceId } = wsResult
++    const db = getDatabase()
++    const task = db.prepare('SELECT * FROM tasks WHERE id = ? AND workspace_id = ?')
++      .get(taskId, workspaceId) as Task | undefined
++    if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
++
++    const taskDeny = requireAgentTaskAccess(auth.user, task.assigned_to ?? null)
++    if (taskDeny) return taskDeny
++    if (!STOPPABLE_STATUSES.has(task.status)) {
++      return NextResponse.json({ error: `Task cannot be stopped while it is ${task.status}` }, { status: 409 })
++    }
++
++    const metadata = (() => {
++      try { return task.metadata ? JSON.parse(task.metadata) : {} } catch { return {} }
++    })()
++    const now = Math.floor(Date.now() / 1000)
++    metadata.runtime_cancel_requested = true
++    metadata.runtime_cancelled_at = now
++    metadata.runtime_cancelled_by = auth.user.username
++    delete metadata.dispatch_not_before
++    delete metadata.review_not_before
++
++    // Mark cancellation before signalling the child. Its close handler can then
++    // see the marker and will not put the task back into the retry queue.
++    db.prepare(`
++      UPDATE tasks
++      SET status = 'failed', outcome = 'abandoned', error_message = ?, metadata = ?, updated_at = ?
++      WHERE id = ? AND workspace_id = ?
++    `).run('Stopped by user', JSON.stringify(metadata), now, taskId, workspaceId)
++
++    const runtime = cancelActiveTaskExecution(taskId)
++    db_helpers.logActivity(
++      'task_cancelled',
++      'task',
++      taskId,
++      auth.user.username,
++      `Stopped task: ${task.title}`,
++      { previous_status: task.status, process_stopped: runtime.stopped, runtime: runtime.runtime },
++      workspaceId,
++    )
++    eventBus.broadcast('task.status_changed', {
++      id: taskId,
++      status: 'failed',
++      previous_status: task.status,
++      error_message: 'Stopped by user',
++      reason: 'user_cancelled',
++    })
++    eventBus.broadcast('task.updated', {
++      id: taskId,
++      status: 'failed',
++      outcome: 'abandoned',
++      error_message: 'Stopped by user',
++      metadata,
++    })
++
++    return NextResponse.json({ success: true, process_stopped: runtime.stopped, runtime: runtime.runtime })
++  } catch (error) {
++    logger.error({ err: error }, 'POST /api/tasks/[id]/cancel error')
++    return NextResponse.json({ error: 'Failed to stop task' }, { status: 500 })
++  }
++}
+diff --git a/src/app/api/tasks/[id]/route.ts b/src/app/api/tasks/[id]/route.ts
+index 07e4519..17ce2b0 100644
+--- a/src/app/api/tasks/[id]/route.ts
++++ b/src/app/api/tasks/[id]/route.ts
+@@ -7,7 +7,7 @@ import { logger } from '@/lib/logger';
+ import { validateBody, updateTaskSchema } from '@/lib/validation';
+ import { resolveMentionRecipients } from '@/lib/mentions';
+ import { normalizeTaskUpdateStatus } from '@/lib/task-status';
+-import { reconcileDeferredTaskCompletions } from '@/lib/task-dispatch';
++import { cancelActiveTaskExecution, reconcileDeferredTaskCompletions } from '@/lib/task-dispatch';
+ import { syncTaskOutbound } from '@/lib/github-sync-engine';
+ import { removeTaskFromGnap } from '@/lib/gnap-sync';
+ import { config } from '@/lib/config';
+@@ -461,6 +461,10 @@ export async function DELETE(
+     const taskDeny = requireAgentTaskAccess(auth.user, (task as Task).assigned_to ?? null);
+     if (taskDeny) return taskDeny;
+ 
++    // A task may still own a local Codex/Hermes child process. Stop it before
++    // deleting the database row so Delete never leaves invisible work running.
++    cancelActiveTaskExecution(taskId);
++
+     // Delete task (cascades will handle comments)
+     const stmt = db.prepare('DELETE FROM tasks WHERE id = ? AND workspace_id = ?');
+     stmt.run(taskId, workspaceId);
+diff --git a/src/components/panels/task-board-panel.tsx b/src/components/panels/task-board-panel.tsx
+index 6ebbc48..c94a9ab 100644
+--- a/src/components/panels/task-board-panel.tsx
++++ b/src/components/panels/task-board-panel.tsx
+@@ -1236,6 +1236,7 @@ function TaskDetailModal({
+   const [reviewStatus, setReviewStatus] = useState<'approved' | 'rejected'>('approved')
+   const [reviewNotes, setReviewNotes] = useState('')
+   const [reviewError, setReviewError] = useState<string | null>(null)
++  const [taskActionBusy, setTaskActionBusy] = useState(false)
+   const mentionTargets = useMentionTargets()
+   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'quality' | 'session'>('details')
+   const [reviewer, setReviewer] = useState('aegis')
+@@ -1472,16 +1473,47 @@ function TaskDetailModal({
+               <h3 id="task-detail-title" className="text-lg font-semibold text-foreground leading-tight">{task.title}</h3>
+             </div>
+             <div className="flex items-center gap-1 shrink-0">
++              {['assigned', 'in_progress', 'review', 'quality_review'].includes(task.status) && (
++                <Button
++                  variant="secondary"
++                  size="sm"
++                  disabled={taskActionBusy}
++                  className="text-amber-400 hover:text-amber-300"
++                  aria-label={t('stopTask')}
++                  onClick={async () => {
++                    if (!confirm(t('stopTaskConfirm', { title: task.title }))) return
++                    setTaskActionBusy(true)
++                    try {
++                      const res = await apiFetch<Response>(`/api/tasks/${task.id}/cancel`, { method: 'POST', raw: true })
++                      if (!res.ok) {
++                        const errorData = await res.json().catch(() => ({ error: 'Failed to stop task' }))
++                        throw new Error(errorData.error || 'Failed to stop task')
++                      }
++                      onClose()
++                      onUpdate()
++                    } catch (error) {
++                      alert(error instanceof Error ? error.message : 'Failed to stop task')
++                    } finally {
++                      setTaskActionBusy(false)
++                    }
++                  }}
++                >
++                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10" rx="1" /></svg>
++                  {t('stopTask')}
++                </Button>
++              )}
+               <Button variant="ghost" size="icon-sm" onClick={() => onEdit(task)} className="text-muted-foreground hover:text-foreground" aria-label={t('edit')}>
+                 <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M11.5 1.5l3 3-9 9H2.5v-3z" /><path d="M9.5 3.5l3 3" /></svg>
+               </Button>
+               <Button
+                 variant="ghost"
+                 size="icon-sm"
++                disabled={taskActionBusy}
+                 className="text-muted-foreground hover:text-red-400"
+                 aria-label={t('delete')}
+                 onClick={async () => {
+                   if (!confirm(t('deleteTaskConfirm', { title: task.title }))) return
++                  setTaskActionBusy(true)
+                   try {
+                     // raw:true preserves reading the server error body on !res.ok to
+                     // surface the precise message in the alert.
+@@ -1490,10 +1522,13 @@ function TaskDetailModal({
+                       const errorData = await res.json().catch(() => ({ error: 'Failed to delete task' }))
+                       throw new Error(errorData.error || 'Failed to delete task')
+                     }
++                    onDelete()
+                     onClose()
+                   } catch (error) {
+                     const errorMessage = error instanceof Error ? error.message : 'Failed to delete task'
+                     alert(errorMessage)
++                  } finally {
++                    setTaskActionBusy(false)
+                   }
+                 }}
+               >
+diff --git a/src/lib/__tests__/task-cancel-route.test.ts b/src/lib/__tests__/task-cancel-route.test.ts
+new file mode 100644
+index 0000000..89cd360
+--- /dev/null
++++ b/src/lib/__tests__/task-cancel-route.test.ts
+@@ -0,0 +1,83 @@
++import { beforeEach, describe, expect, it, vi } from 'vitest'
++import { NextRequest } from 'next/server'
++
++const requireRole = vi.fn()
++const prepare = vi.fn()
++const cancelActiveTaskExecution = vi.fn()
++const broadcast = vi.fn()
++const logActivity = vi.fn()
++
++vi.mock('@/lib/auth', () => ({ requireRole }))
++vi.mock('@/lib/rate-limit', () => ({ mutationLimiter: vi.fn(() => null) }))
++vi.mock('@/lib/enforcement/workspace-scope', () => ({
++  requireWorkspaceId: vi.fn((user) => ({ workspaceId: user.workspace_id })),
++  requireAgentTaskAccess: vi.fn(() => null),
++}))
++vi.mock('@/lib/task-dispatch', () => ({ cancelActiveTaskExecution }))
++vi.mock('@/lib/event-bus', () => ({ eventBus: { broadcast } }))
++vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn() } }))
++vi.mock('@/lib/db', () => ({
++  getDatabase: vi.fn(() => ({ prepare })),
++  db_helpers: { logActivity },
++}))
++
++describe('POST /api/tasks/[id]/cancel', () => {
++  beforeEach(() => {
++    vi.resetModules()
++    vi.clearAllMocks()
++    requireRole.mockReturnValue({ user: { username: 'admin', role: 'admin', workspace_id: 1 } })
++    cancelActiveTaskExecution.mockReturnValue({ stopped: true, runtime: 'hermes' })
++  })
++
++  it('marks an active task as abandoned before stopping its process', async () => {
++    const task = {
++      id: 42,
++      title: 'Long Hermes job',
++      status: 'in_progress',
++      assigned_to: 'Hermes GLM',
++      metadata: JSON.stringify({ dispatch_not_before: 123 }),
++    }
++    const select = { get: vi.fn(() => task) }
++    const update = { run: vi.fn() }
++    prepare.mockImplementation((sql: string) => sql.includes('SELECT * FROM tasks') ? select : update)
++
++    const { POST } = await import('@/app/api/tasks/[id]/cancel/route')
++    const response = await POST(
++      new NextRequest('http://localhost/api/tasks/42/cancel', { method: 'POST' }),
++      { params: Promise.resolve({ id: '42' }) },
++    )
++    const body = await response.json()
++
++    expect(response.status).toBe(200)
++    expect(body).toEqual({ success: true, process_stopped: true, runtime: 'hermes' })
++    expect(update.run).toHaveBeenCalled()
++    const metadata = JSON.parse(update.run.mock.calls[0][1])
++    expect(metadata.runtime_cancel_requested).toBe(true)
++    expect(metadata.dispatch_not_before).toBeUndefined()
++    expect(cancelActiveTaskExecution).toHaveBeenCalledWith(42)
++    expect(broadcast).toHaveBeenCalledWith('task.status_changed', expect.objectContaining({
++      id: 42,
++      status: 'failed',
++      reason: 'user_cancelled',
++    }))
++  })
++
++  it('does not stop a task that has already finished', async () => {
++    prepare.mockReturnValue({ get: vi.fn(() => ({
++      id: 43,
++      title: 'Finished',
++      status: 'done',
++      assigned_to: 'Codex',
++      metadata: '{}',
++    })) })
++
++    const { POST } = await import('@/app/api/tasks/[id]/cancel/route')
++    const response = await POST(
++      new NextRequest('http://localhost/api/tasks/43/cancel', { method: 'POST' }),
++      { params: Promise.resolve({ id: '43' }) },
++    )
++
++    expect(response.status).toBe(409)
++    expect(cancelActiveTaskExecution).not.toHaveBeenCalled()
++  })
++})
+diff --git a/src/lib/task-dispatch.ts b/src/lib/task-dispatch.ts
+index de9c473..f38fce1 100644
+--- a/src/lib/task-dispatch.ts
++++ b/src/lib/task-dispatch.ts
+@@ -11,6 +11,36 @@ import { syncTaskOutbound } from './github-sync-engine'
+ 
+ const AGENT_DISPATCH_ACCEPT_TIMEOUT_MS = 60_000
+ 
++type ActiveTaskProcess = {
++  proc: ReturnType<typeof spawn>
++  runtime: 'codex' | 'hermes'
++}
++
++const activeTaskProcesses = (() => {
++  const shared = globalThis as typeof globalThis & { __mcActiveTaskProcesses?: Map<number, ActiveTaskProcess> }
++  if (!shared.__mcActiveTaskProcesses) shared.__mcActiveTaskProcesses = new Map()
++  return shared.__mcActiveTaskProcesses
++})()
++
++function registerActiveTaskProcess(taskId: number, active: ActiveTaskProcess): void {
++  activeTaskProcesses.set(taskId, active)
++}
++
++function unregisterActiveTaskProcess(taskId: number, proc: ReturnType<typeof spawn>): void {
++  if (activeTaskProcesses.get(taskId)?.proc === proc) activeTaskProcesses.delete(taskId)
++}
++
++/** Stop a local Codex/Hermes child process that is currently executing a task. */
++export function cancelActiveTaskExecution(taskId: number): { stopped: boolean; runtime: string | null } {
++  const active = activeTaskProcesses.get(taskId)
++  if (!active) return { stopped: false, runtime: null }
++  active.proc.kill('SIGTERM')
++  setTimeout(() => {
++    if (active.proc.exitCode === null) active.proc.kill('SIGKILL')
++  }, 5000).unref()
++  return { stopped: true, runtime: active.runtime }
++}
++
+ function positiveEnvMilliseconds(name: string, fallback: number): number {
+   const parsed = Number.parseInt((process.env[name] || '').trim(), 10)
+   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+@@ -949,6 +979,7 @@ async function callCodexViaCli(
+       env: { ...process.env },
+       cwd: resolveTaskWorkingDirectory(task),
+     })
++    registerActiveTaskProcess(task.id, { proc, runtime: 'codex' })
+     let stdout = ''
+     let stderr = ''
+     const timeoutMs = 300_000
+@@ -959,9 +990,10 @@ async function callCodexViaCli(
+ 
+     proc.stdout.on('data', (d) => { stdout += d.toString() })
+     proc.stderr.on('data', (d) => { stderr += d.toString() })
+-    proc.on('error', (err) => { clearTimeout(timer); reject(err) })
++    proc.on('error', (err) => { clearTimeout(timer); unregisterActiveTaskProcess(task.id, proc); reject(err) })
+     proc.on('close', (code) => {
+       clearTimeout(timer)
++      unregisterActiveTaskProcess(task.id, proc)
+       let text: string | null = null
+       try { text = (readFileSync(outPath, 'utf8') as string).trim() || null } catch { /* no output file written */ }
+       try { rmSync(outPath, { force: true }) } catch { /* ignore */ }
+@@ -1041,6 +1073,7 @@ async function callHermesViaCli(
+       },
+       cwd: resolveTaskWorkingDirectory(task),
+     })
++    registerActiveTaskProcess(task.id, { proc, runtime: 'hermes' })
+     let stdout = ''
+     let stderr = ''
+     const inactivityTimeoutMs = positiveEnvMilliseconds('MC_HERMES_INACTIVITY_TIMEOUT_MS', 15 * 60_000)
+@@ -1060,6 +1093,7 @@ async function callHermesViaCli(
+       if (settled) return
+       settled = true
+       cleanup()
++      unregisterActiveTaskProcess(task.id, proc)
+       proc.kill('SIGTERM')
+       setTimeout(() => { if (proc.exitCode === null) proc.kill('SIGKILL') }, 5000).unref()
+       reject(error)
+@@ -1111,6 +1145,7 @@ async function callHermesViaCli(
+       if (settled) return
+       settled = true
+       cleanup()
++      unregisterActiveTaskProcess(task.id, proc)
+       const text = stdout.trim()
+       const terminalError = getHermesTerminalError(text, stderr, code ?? 1)
+       if (terminalError) return reject(new Error(terminalError))
+@@ -1835,6 +1870,25 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
+       const errorMsg = err.message || 'Unknown error'
+       logger.error({ taskId: task.id, agent: task.agent_name, err }, 'Task dispatch failed')
+ 
++      const currentTaskState = db.prepare('SELECT status, metadata FROM tasks WHERE id = ?').get(task.id) as { status: string; metadata: string | null } | undefined
++      const cancellationRequested = (() => {
++        try { return Boolean(currentTaskState?.metadata && JSON.parse(currentTaskState.metadata).runtime_cancel_requested) }
++        catch { return false }
++      })()
++      if (cancellationRequested || !currentTaskState) {
++        db_helpers.logActivity(
++          'task_cancelled',
++          'task',
++          task.id,
++          'scheduler',
++          `Stopped task "${task.title}" without retrying it`,
++          { runtime: task.agent_runtime_type || null },
++          task.workspace_id,
++        )
++        results.push({ id: task.id, success: false, error: 'Stopped by user' })
++        continue
++      }
++
+       // Increment dispatch_attempts and decide next status
+       const currentAttempts = (db.prepare('SELECT dispatch_attempts FROM tasks WHERE id = ?').get(task.id) as { dispatch_attempts: number } | undefined)?.dispatch_attempts ?? 0
+       const newAttempts = currentAttempts + 1

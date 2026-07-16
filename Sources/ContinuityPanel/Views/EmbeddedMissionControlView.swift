@@ -107,5 +107,46 @@ struct EmbeddedMissionControlView: NSViewRepresentable {
             NSWorkspace.shared.open(destination)
             return nil
         }
+
+        func webView(
+            _ webView: WKWebView,
+            runJavaScriptAlertPanelWithMessage message: String,
+            initiatedByFrame frame: WKFrameInfo,
+            completionHandler: @escaping () -> Void
+        ) {
+            let alert = NSAlert()
+            alert.alertStyle = .informational
+            alert.messageText = message
+            alert.addButton(withTitle: "OK")
+            present(alert, in: webView) { _ in completionHandler() }
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            runJavaScriptConfirmPanelWithMessage message: String,
+            initiatedByFrame frame: WKFrameInfo,
+            completionHandler: @escaping (Bool) -> Void
+        ) {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = message
+            alert.addButton(withTitle: "OK")
+            alert.addButton(withTitle: "Cancel")
+            present(alert, in: webView) { response in
+                completionHandler(response == .alertFirstButtonReturn)
+            }
+        }
+
+        private func present(
+            _ alert: NSAlert,
+            in webView: WKWebView,
+            completion: @escaping (NSApplication.ModalResponse) -> Void
+        ) {
+            if let window = webView.window {
+                alert.beginSheetModal(for: window, completionHandler: completion)
+            } else {
+                completion(alert.runModal())
+            }
+        }
     }
 }
