@@ -1,0 +1,226 @@
+diff --git a/src/app/api/tasks/[id]/retry/route.ts b/src/app/api/tasks/[id]/retry/route.ts
+new file mode 100644
+index 0000000..95b4151
+--- /dev/null
++++ b/src/app/api/tasks/[id]/retry/route.ts
+@@ -0,0 +1,95 @@
++import { NextRequest, NextResponse } from 'next/server'
++import { getDatabase, db_helpers, type Task } from '@/lib/db'
++import { requireRole } from '@/lib/auth'
++import { mutationLimiter } from '@/lib/rate-limit'
++import { requireAgentTaskAccess, requireWorkspaceId } from '@/lib/enforcement/workspace-scope'
++import { eventBus } from '@/lib/event-bus'
++import { logger } from '@/lib/logger'
++
++/** POST /api/tasks/[id]/retry - requeue a failed task for its current assignee. */
++export async function POST(
++  request: NextRequest,
++  { params }: { params: Promise<{ id: string }> },
++) {
++  const auth = requireRole(request, 'operator')
++  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
++
++  const rateCheck = mutationLimiter(request)
++  if (rateCheck) return rateCheck
++
++  try {
++    const taskId = Number.parseInt((await params).id, 10)
++    if (!Number.isFinite(taskId)) return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 })
++
++    const wsResult = requireWorkspaceId(auth.user)
++    if (!('workspaceId' in wsResult)) return wsResult.response
++    const { workspaceId } = wsResult
++    const db = getDatabase()
++    const task = db.prepare('SELECT * FROM tasks WHERE id = ? AND workspace_id = ?')
++      .get(taskId, workspaceId) as Task | undefined
++    if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
++
++    const taskDeny = requireAgentTaskAccess(auth.user, task.assigned_to ?? null)
++    if (taskDeny) return taskDeny
++    if (task.status !== 'failed') {
++      return NextResponse.json({ error: `Task cannot be retried while it is ${task.status}` }, { status: 409 })
++    }
++    if (!task.assigned_to) {
++      return NextResponse.json({ error: 'Assign an agent before retrying the task' }, { status: 409 })
++    }
++
++    const metadata = (() => {
++      try { return task.metadata ? JSON.parse(task.metadata) : {} } catch { return {} }
++    })()
++    for (const key of [
++      'runtime_cancel_requested',
++      'runtime_cancelled_at',
++      'runtime_cancelled_by',
++      'dispatch_not_before',
++      'dispatch_retry_reason',
++      'dispatch_retry_delay_seconds',
++      'review_not_before',
++      'dispatch_session_id',
++      'dispatch_run_id',
++      'async_state',
++    ]) delete metadata[key]
++
++    const now = Math.floor(Date.now() / 1000)
++    db.prepare(`
++      UPDATE tasks
++      SET status = 'assigned', outcome = NULL, error_message = NULL,
++          resolution = NULL, dispatch_attempts = 0, metadata = ?, updated_at = ?
++      WHERE id = ? AND workspace_id = ?
++    `).run(JSON.stringify(metadata), now, taskId, workspaceId)
++
++    db_helpers.logActivity(
++      'task_retried',
++      'task',
++      taskId,
++      auth.user.username,
++      `Retrying task "${task.title}" with ${task.assigned_to}`,
++      { previous_status: task.status, assigned_to: task.assigned_to },
++      workspaceId,
++    )
++    eventBus.broadcast('task.status_changed', {
++      id: taskId,
++      status: 'assigned',
++      previous_status: task.status,
++      error_message: null,
++      reason: 'manual_retry',
++    })
++    eventBus.broadcast('task.updated', {
++      id: taskId,
++      status: 'assigned',
++      outcome: null,
++      error_message: null,
++      dispatch_attempts: 0,
++      metadata,
++    })
++
++    return NextResponse.json({ success: true })
++  } catch (error) {
++    logger.error({ err: error }, 'POST /api/tasks/[id]/retry error')
++    return NextResponse.json({ error: 'Failed to retry task' }, { status: 500 })
++  }
++}
+diff --git a/src/components/panels/task-board-panel.tsx b/src/components/panels/task-board-panel.tsx
+index e6d6c97..371bef0 100644
+--- a/src/components/panels/task-board-panel.tsx
++++ b/src/components/panels/task-board-panel.tsx
+@@ -1575,19 +1575,20 @@ function TaskDetailModal({
+               <p className="text-2xs text-muted-foreground">Dispatch attempts: {task.dispatch_attempts}</p>
+             )}
+             <button
++              disabled={taskActionBusy}
+               onClick={async () => {
++                setTaskActionBusy(true)
+                 try {
+-                  // raw:true preserves the `if (res.ok) onClose()` gate so a 400/422
+-                  // does not incorrectly close the modal.
+-                  const res = await apiFetch<Response>(`/api/tasks/${task.id}`, {
+-                    method: 'PUT',
+-                    raw: true,
+-                    body: JSON.stringify({ status: 'assigned', dispatch_attempts: 0, error_message: null }),
+-                  })
+-                  if (res.ok) onClose()
+-                } catch { /* ignore */ }
++                  await apiFetch(`/api/tasks/${task.id}/retry`, { method: 'POST' })
++                  onClose()
++                  onUpdate()
++                } catch (error) {
++                  alert(error instanceof Error ? error.message : 'Failed to retry task')
++                } finally {
++                  setTaskActionBusy(false)
++                }
+               }}
+-              className="text-xs px-3 py-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30 transition-colors"
++              className="text-xs px-3 py-1.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+             >
+               {t('retryTask')}
+             </button>
+diff --git a/src/lib/__tests__/task-retry-route.test.ts b/src/lib/__tests__/task-retry-route.test.ts
+new file mode 100644
+index 0000000..773cf53
+--- /dev/null
++++ b/src/lib/__tests__/task-retry-route.test.ts
+@@ -0,0 +1,84 @@
++import { beforeEach, describe, expect, it, vi } from 'vitest'
++import { NextRequest } from 'next/server'
++
++const requireRole = vi.fn()
++const prepare = vi.fn()
++const broadcast = vi.fn()
++const logActivity = vi.fn()
++
++vi.mock('@/lib/auth', () => ({ requireRole }))
++vi.mock('@/lib/rate-limit', () => ({ mutationLimiter: vi.fn(() => null) }))
++vi.mock('@/lib/enforcement/workspace-scope', () => ({
++  requireWorkspaceId: vi.fn((user) => ({ workspaceId: user.workspace_id })),
++  requireAgentTaskAccess: vi.fn(() => null),
++}))
++vi.mock('@/lib/event-bus', () => ({ eventBus: { broadcast } }))
++vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn() } }))
++vi.mock('@/lib/db', () => ({
++  getDatabase: vi.fn(() => ({ prepare })),
++  db_helpers: { logActivity },
++}))
++
++describe('POST /api/tasks/[id]/retry', () => {
++  beforeEach(() => {
++    vi.resetModules()
++    vi.clearAllMocks()
++    requireRole.mockReturnValue({ user: { username: 'admin', role: 'admin', workspace_id: 1 } })
++  })
++
++  it('clears cancellation state and requeues with the current assignee', async () => {
++    const failedTask = {
++      id: 42,
++      title: 'Snake game',
++      status: 'failed',
++      assigned_to: 'Hermes Deepseek V4 pro',
++      metadata: JSON.stringify({
++        runtime_cancel_requested: true,
++        runtime_cancelled_at: 123,
++        dispatch_retry_reason: 'HTTP 429',
++        keep_me: 'preserved',
++      }),
++    }
++    const select = { get: vi.fn(() => failedTask) }
++    const update = { run: vi.fn() }
++    prepare.mockImplementation((sql: string) => sql.includes('SELECT * FROM tasks') ? select : update)
++
++    const { POST } = await import('@/app/api/tasks/[id]/retry/route')
++    const response = await POST(
++      new NextRequest('http://localhost/api/tasks/42/retry', { method: 'POST' }),
++      { params: Promise.resolve({ id: '42' }) },
++    )
++    const body = await response.json()
++
++    expect(response.status).toBe(200)
++    expect(body.success).toBe(true)
++    const metadata = JSON.parse(update.run.mock.calls[0][0])
++    expect(metadata.runtime_cancel_requested).toBeUndefined()
++    expect(metadata.runtime_cancelled_at).toBeUndefined()
++    expect(metadata.dispatch_retry_reason).toBeUndefined()
++    expect(metadata.keep_me).toBe('preserved')
++    expect(broadcast).toHaveBeenCalledWith('task.status_changed', expect.objectContaining({
++      id: 42,
++      status: 'assigned',
++      reason: 'manual_retry',
++    }))
++  })
++
++  it('rejects retrying a task that is not failed', async () => {
++    prepare.mockReturnValue({ get: vi.fn(() => ({
++      id: 43,
++      title: 'Active',
++      status: 'assigned',
++      assigned_to: 'Codex',
++      metadata: '{}',
++    })) })
++
++    const { POST } = await import('@/app/api/tasks/[id]/retry/route')
++    const response = await POST(
++      new NextRequest('http://localhost/api/tasks/43/retry', { method: 'POST' }),
++      { params: Promise.resolve({ id: '43' }) },
++    )
++
++    expect(response.status).toBe(409)
++  })
++})
