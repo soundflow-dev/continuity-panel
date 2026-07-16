@@ -46,6 +46,7 @@ MC_PATCHES=(
   "$ROOT/patches/mission-control-hermes-profiles.patch"
   "$ROOT/patches/mission-control-hermes-resilience.patch"
   "$ROOT/patches/mission-control-task-controls.patch"
+  "$ROOT/patches/mission-control-task-delete-state.patch"
 )
 for MC_PATCH in "${MC_PATCHES[@]}"; do
   if git -C "$ROOT/mission-control" apply --reverse --check "$MC_PATCH" >/dev/null 2>&1; then
