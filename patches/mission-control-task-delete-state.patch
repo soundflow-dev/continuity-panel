@@ -1,0 +1,169 @@
+diff --git a/src/components/panels/task-board-panel.tsx b/src/components/panels/task-board-panel.tsx
+index c94a9ab..e6d6c97 100644
+--- a/src/components/panels/task-board-panel.tsx
++++ b/src/components/panels/task-board-panel.tsx
+@@ -7,6 +7,7 @@ import { useMissionControl } from '@/store'
+ import { useSmartPoll } from '@/lib/use-smart-poll'
+ import { apiFetch, ApiError } from '@/lib/api-client'
+ import { countCommentsDeep } from '@/lib/comment-utils'
++import { getMissingTaskStateUpdate } from '@/lib/task-selection'
+
+ import { createClientLogger } from '@/lib/client-logger'
+
+@@ -395,7 +396,7 @@ interface SpawnFormData {
+ export function TaskBoardPanel() {
+   const t = useTranslations('taskBoard')
+   const statusColumns = STATUS_COLUMN_KEYS.map(col => ({ ...col, title: t(col.titleKey as any) }))
+-  const { tasks: storeTasks, setTasks: storeSetTasks, selectedTask, setSelectedTask, activeProject, availableModels, spawnRequests, addSpawnRequest, updateSpawnRequest, dashboardMode } = useMissionControl()
++  const { tasks: storeTasks, setTasks: storeSetTasks, deleteTask: removeTaskFromStore, selectedTask, setSelectedTask, activeProject, availableModels, spawnRequests, addSpawnRequest, updateSpawnRequest, dashboardMode } = useMissionControl()
+   const router = useRouter()
+   const pathname = usePathname()
+   const searchParams = useSearchParams()
+@@ -423,6 +424,7 @@ export function TaskBoardPanel() {
+   const [gnapSyncing, setGnapSyncing] = useState(false)
+   const isLocal = dashboardMode === 'local'
+   const dragCounter = useRef(0)
++  const dismissedTaskIdRef = useRef<number | null>(null)
+   const selectedTaskIdFromUrl = Number.parseInt(searchParams.get('taskId') || '', 10)
+
+   const updateTaskUrl = useCallback((taskId: number | null, mode: 'push' | 'replace' = 'push') => {
+@@ -442,10 +444,19 @@ export function TaskBoardPanel() {
+   }, [pathname, router, searchParams])
+
+   // Augment store tasks with aegisApproved flag (computed, not stored)
+-  const tasks: Task[] = storeTasks.map(t => ({
++  const tasks: Task[] = useMemo(() => storeTasks.map(t => ({
+     ...t,
+     aegisApproved: Boolean(aegisMap[t.id])
+-  }))
++  })), [aegisMap, storeTasks])
++
++  const handleTaskDeleted = useCallback((taskId: number) => {
++    // The route update is asynchronous. Remember this deliberate removal so
++    // the URL-selection effect does not treat the short-lived old taskId as
++    // an external missing-task error while React commits the local removal.
++    dismissedTaskIdRef.current = taskId
++    updateTaskUrl(null, 'replace')
++    removeTaskFromStore(taskId)
++  }, [removeTaskFromStore, updateTaskUrl])
+
+   // Fetch tasks, agents, and projects
+   const fetchData = useCallback(async () => {
+@@ -535,6 +546,7 @@ export function TaskBoardPanel() {
+
+   useEffect(() => {
+     if (!Number.isFinite(selectedTaskIdFromUrl)) {
++      dismissedTaskIdRef.current = null
+       if (selectedTask) setSelectedTask(null)
+       return
+     }
+@@ -547,11 +559,17 @@ export function TaskBoardPanel() {
+       return
+     }
+
+-    if (!loading) {
+-      setError(`Task #${selectedTaskIdFromUrl} not found in current workspace`)
+-      setSelectedTask(null)
+-    }
+-  }, [loading, selectedTask, selectedTaskIdFromUrl, setSelectedTask, tasks])
++    const update = getMissingTaskStateUpdate(
++      selectedTaskIdFromUrl,
++      dismissedTaskIdRef.current,
++      loading,
++      error,
++      Boolean(selectedTask)
++    )
++    if (!update) return
++    if (update.error) setError(update.error)
++    if (update.clearSelection) setSelectedTask(null)
++  }, [error, loading, selectedTask, selectedTaskIdFromUrl, setSelectedTask, tasks])
+
+   // Poll as SSE fallback — pauses when SSE is delivering events
+   useSmartPoll(fetchData, 30000, { pauseWhenSseConnected: true })
+@@ -1166,7 +1184,7 @@ export function TaskBoardPanel() {
+             setSelectedTask(null)
+             updateTaskUrl(null, 'replace')
+           }}
+-          onDelete={fetchData}
++          onDelete={handleTaskDeleted}
+         />
+       )}
+
+@@ -1217,7 +1235,7 @@ function TaskDetailModal({
+   onClose: () => void
+   onUpdate: () => void
+   onEdit: (task: Task) => void
+-  onDelete: () => void
++  onDelete: (taskId: number) => void
+ }) {
+   const t = useTranslations('taskBoard')
+   const router = useRouter()
+@@ -1522,8 +1540,7 @@ function TaskDetailModal({
+                       const errorData = await res.json().catch(() => ({ error: 'Failed to delete task' }))
+                       throw new Error(errorData.error || 'Failed to delete task')
+                     }
+-                    onDelete()
+-                    onClose()
++                    onDelete(task.id)
+                   } catch (error) {
+                     const errorMessage = error instanceof Error ? error.message : 'Failed to delete task'
+                     alert(errorMessage)
+diff --git a/src/lib/__tests__/task-selection.test.ts b/src/lib/__tests__/task-selection.test.ts
+new file mode 100644
+index 0000000..f4d9c13
+--- /dev/null
++++ b/src/lib/__tests__/task-selection.test.ts
+@@ -0,0 +1,23 @@
++import { describe, expect, it } from 'vitest'
++import { getMissingTaskStateUpdate } from '@/lib/task-selection'
++
++describe('getMissingTaskStateUpdate', () => {
++  it('ignores a deliberately deleted task while the URL is catching up', () => {
++    expect(getMissingTaskStateUpdate(42, 42, false, null, false)).toBeNull()
++  })
++
++  it('writes the missing-task state only once', () => {
++    expect(getMissingTaskStateUpdate(42, null, false, null, true)).toEqual({
++      error: 'Task #42 not found in current workspace',
++      clearSelection: true,
++    })
++
++    expect(getMissingTaskStateUpdate(
++      42,
++      null,
++      false,
++      'Task #42 not found in current workspace',
++      false
++    )).toBeNull()
++  })
++})
+diff --git a/src/lib/task-selection.ts b/src/lib/task-selection.ts
+new file mode 100644
+index 0000000..bf0984b
+--- /dev/null
++++ b/src/lib/task-selection.ts
+@@ -0,0 +1,24 @@
++export interface MissingTaskStateUpdate {
++  error: string | null
++  clearSelection: boolean
++}
++
++/**
++ * Calculates only the state writes needed when a taskId in the URL no longer
++ * exists. Returning null means the render must not write state at all.
++ */
++export function getMissingTaskStateUpdate(
++  taskId: number,
++  dismissedTaskId: number | null,
++  loading: boolean,
++  currentError: string | null,
++  hasSelectedTask: boolean
++): MissingTaskStateUpdate | null {
++  if (loading || dismissedTaskId === taskId) return null
++
++  const missingTaskError = `Task #${taskId} not found in current workspace`
++  const error = currentError === missingTaskError ? null : missingTaskError
++
++  if (error === null && !hasSelectedTask) return null
++  return { error, clearSelection: hasSelectedTask }
++}
