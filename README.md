@@ -17,6 +17,7 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 - Built-in catalog for Codex, Hermes, Claude Code, Gemini CLI, GitHub Copilot CLI, OpenCode, goose, Aider, Qwen Code, and Kimi Code.
 - Dynamic Hermes provider catalog sourced from the installed Hermes version, including API keys, OAuth accounts, cloud subscriptions, AWS, Vertex AI, local services, and custom endpoints.
 - Multiple isolated Hermes profiles, each permanently bound to its own provider and model, with reusable provider credentials from macOS Keychain.
+- Resilient Hermes execution with activity-aware timeouts, visible progress, provider-error detection, and exponential retry backoff.
 - Separate cloud-provider catalog for OpenAI, Anthropic, OpenRouter, Google, Z.AI/GLM, Mistral, Groq, xAI, DeepSeek, and Moonshot.
 - Local Mission Control service managed by `launchd`.
 - Shared `AGENTS.md` and `PROJECT_STATE.md` protocol for agent handoff.
@@ -33,7 +34,7 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 
 ## Install the app
 
-Download `ContinuityPanel-0.5.5-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
+Download `ContinuityPanel-0.5.6-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
 
 1. Select **Install Environment** in the app.
 2. Create the local Mission Control administrator when the embedded setup appears.
@@ -104,6 +105,8 @@ Open **Agents & Models → Hermes Agent → Manage profiles**. Create one profil
 ContinuityPanel creates a matching Mission Control agent automatically. Assigning a task to that agent selects its Hermes profile, so no global model switching is required. Profiles keep configuration, sessions, state, and memory separate while using the same Hermes installation.
 
 API credentials are saved by provider and field in macOS Keychain. When another profile uses the same provider, leave its credential field empty to reuse the saved key. Existing credentials from the original shared Hermes configuration are migrated to Keychain when first reused. All profiles using the same key also share that provider account's quota and rate limits.
+
+Long Hermes jobs are monitored through profile activity rather than being stopped after a fixed ten minutes. The default inactivity limit is 15 minutes and the hard runtime limit is 45 minutes; advanced users can override them with `MC_HERMES_INACTIVITY_TIMEOUT_MS` and `MC_HERMES_MAX_RUNTIME_MS` in Mission Control's `.env`. HTTP 429 and provider 5xx responses are recorded as failures and retried with exponential backoff instead of being presented as completed work. In local mode, quality review prefers the authenticated Codex CLI and falls back to another configured runtime.
 
 Use **Manage Profiles → Remove…** to remove a named profile. ContinuityPanel refuses removal while its agent has active work, hides the corresponding Mission Control agent, and moves the profile directory to the macOS Trash. Shared provider credentials remain in Keychain because other profiles may still use them. The original shared/default Hermes configuration is preserved.
 
