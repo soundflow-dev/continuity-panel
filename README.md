@@ -18,6 +18,7 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 - Dynamic Hermes provider catalog sourced from the installed Hermes version, including API keys, OAuth accounts, cloud subscriptions, AWS, Vertex AI, local services, and custom endpoints.
 - Multiple isolated Hermes profiles, each permanently bound to its own provider and model, with reusable provider credentials from macOS Keychain.
 - Resilient Hermes execution with activity-aware timeouts, visible progress, provider-error detection, and exponential retry backoff.
+- Working task controls in the embedded dashboard: stop active Codex/Hermes runs and delete tasks safely after confirmation.
 - Separate cloud-provider catalog for OpenAI, Anthropic, OpenRouter, Google, Z.AI/GLM, Mistral, Groq, xAI, DeepSeek, and Moonshot.
 - Local Mission Control service managed by `launchd`.
 - Shared `AGENTS.md` and `PROJECT_STATE.md` protocol for agent handoff.
@@ -34,7 +35,7 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 
 ## Install the app
 
-Download `ContinuityPanel-0.5.6-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
+Download `ContinuityPanel-0.5.7-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
 
 1. Select **Install Environment** in the app.
 2. Create the local Mission Control administrator when the embedded setup appears.
