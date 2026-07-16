@@ -36,7 +36,7 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 
 ## Install the app
 
-Download `ContinuityPanel-0.6.0-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
+Download `ContinuityPanel-0.6.1-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
 
 1. Select **Install Environment** in the app.
 2. Create the local Mission Control administrator when the embedded setup appears.
@@ -122,6 +122,8 @@ Select **Update…** to choose a channel:
 - **Latest / Main** follows the newest upstream code and can contain fixes before the next release, but may also introduce regressions.
 
 Before changing Hermes, ContinuityPanel refuses to proceed while a Hermes task is active and saves a restricted-permission backup under its Application Support folder. If dependency installation fails, it restores the previous Hermes revision. Projects and Mission Control tasks are not changed by a Hermes update.
+
+The update window streams the Hermes command output live, automatically follows new lines, and keeps the complete progress log visible after success or failure for diagnosis.
 
 ## Mission Control service
 

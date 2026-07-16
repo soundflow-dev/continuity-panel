@@ -1,5 +1,29 @@
+import Foundation
 import Testing
 @testable import ContinuityPanel
+
+private actor StreamCollector {
+    private var value = ""
+    func append(_ chunk: String) { value.append(chunk) }
+    func output() -> String { value }
+}
+
+@Test func commandRunnerStreamsProcessOutput() async throws {
+    let script = FileManager.default.temporaryDirectory
+        .appendingPathComponent("continuity-stream-\(UUID().uuidString).sh")
+    try "#!/bin/bash\necho preparing\nsleep 0.1\necho complete\n".write(to: script, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: script.path)
+    defer { try? FileManager.default.removeItem(at: script) }
+
+    let collector = StreamCollector()
+    let result = try await CommandRunner.runStreaming(executable: script) { chunk in
+        await collector.append(chunk)
+    }
+
+    #expect(result.succeeded)
+    #expect(await collector.output().contains("preparing"))
+    #expect(await collector.output().contains("complete"))
+}
 
 @Test func hermesUpdateChannelsReportAvailability() {
     let status = HermesUpdateStatus(

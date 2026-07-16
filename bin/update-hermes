@@ -76,7 +76,9 @@ install_update() {
     echo "Usage: $0 install stable|latest" >&2
     exit 2
   fi
+  echo "Checking for active Hermes tasks…"
   ensure_idle
+  echo "Fetching update information from NousResearch/hermes-agent…"
   fetch_updates
 
   local previous target backup_dir backup_file
@@ -85,6 +87,7 @@ install_update() {
   backup_file="$backup_dir/before-update-$(date +%Y%m%d-%H%M%S).zip"
   mkdir -p "$backup_dir"
   chmod 700 "$backup_dir"
+  echo "Creating a protected backup of Hermes configuration and sessions…"
   "$HERMES_BIN" backup --quiet --label "before-continuitypanel-update" --output "$backup_file"
   chmod 600 "$backup_file"
 
@@ -94,7 +97,7 @@ install_update() {
     target="$(latest_stable_tag)"
   fi
 
-  echo "Updating Hermes to $target…"
+  echo "Switching Hermes to $target…"
   if ! git -C "$HERMES_REPO" checkout --quiet --detach "$target"; then
     echo "Could not switch Hermes to $target." >&2
     exit 1
@@ -102,6 +105,7 @@ install_update() {
 
   export PATH="$ROOT/runtime/uv-bin:$PATH"
   export UV_PYTHON_INSTALL_DIR="$ROOT/runtime/python"
+  echo "Installing and verifying Hermes dependencies…"
   if ! UV_PROJECT_ENVIRONMENT="$HERMES_REPO/venv" "$UV" sync --project "$HERMES_REPO" --extra all --locked; then
     echo "Update failed. Restoring the previous Hermes revision…" >&2
     git -C "$HERMES_REPO" checkout --quiet --detach "$previous"
