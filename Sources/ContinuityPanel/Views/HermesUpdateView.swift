@@ -62,6 +62,15 @@ struct HermesUpdateView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
+
+                if !store.hermesUpdateLog.isEmpty {
+                    Section("Update progress") {
+                        HermesUpdateLogView(
+                            text: store.hermesUpdateLog,
+                            succeeded: store.hermesUpdateSucceeded
+                        )
+                    }
+                }
             }
             .formStyle(.grouped)
 
@@ -76,13 +85,14 @@ struct HermesUpdateView: View {
                 }
                 Spacer()
                 Button("Done") { dismiss() }
-                Button("Update Hermes") { showingConfirmation = true }
+                    .disabled(store.isBusy)
+                Button(store.isBusy ? "Updating…" : "Update Hermes") { showingConfirmation = true }
                     .buttonStyle(.borderedProminent)
                     .disabled(!canUpdate)
             }
             .padding(20)
         }
-        .frame(width: 620, height: 530)
+        .frame(width: 660, height: 700)
         .task {
             if store.hermesUpdateStatus == nil {
                 await store.checkHermesUpdates()
@@ -131,5 +141,35 @@ struct HermesUpdateView: View {
             return "Latest/Main may contain fixes not yet released, but can also introduce regressions. ContinuityPanel will back up Hermes first and restore the previous code if dependency installation fails."
         }
         return "ContinuityPanel will back up Hermes and install the newest published stable release."
+    }
+}
+
+private struct HermesUpdateLogView: View {
+    let text: String
+    let succeeded: Bool?
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                Text(text)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                Color.clear.frame(height: 1).id("end")
+            }
+            .frame(minHeight: 150, maxHeight: 220)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+            .overlay(alignment: .topTrailing) {
+                if let succeeded {
+                    Image(systemName: succeeded ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundStyle(succeeded ? Color.green : Color.red)
+                        .padding(10)
+                }
+            }
+            .onChange(of: text) {
+                withAnimation { proxy.scrollTo("end", anchor: .bottom) }
+            }
+        }
     }
 }

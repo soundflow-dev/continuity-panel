@@ -13,6 +13,8 @@ final class EnvironmentStore {
     private(set) var connectedProviders: Set<CloudProvider> = []
     private(set) var hermesUpdateStatus: HermesUpdateStatus?
     private(set) var hermesUpdateNotice: String?
+    private(set) var hermesUpdateLog = ""
+    private(set) var hermesUpdateSucceeded: Bool?
     private(set) var isCheckingHermesUpdate = false
     private(set) var isBusy = false
     private(set) var busyMessage = ""
@@ -61,18 +63,54 @@ final class EnvironmentStore {
     }
 
     func updateHermes(channel: HermesUpdateChannel) async -> Bool {
+        guard !isBusy else { return false }
+        isBusy = true
+        busyMessage = "Updating Hermes \(channel.title)…"
+        hermesUpdateSucceeded = nil
+        hermesUpdateLog = "Starting Hermes update on the \(channel.title) channel…\n"
+        activity.insert(ActivityEntry(date: .now, message: busyMessage, level: .info), at: 0)
+
         var updated = false
-        await perform("Updating Hermes \(channel.title)…", success: "Hermes updated to \(channel.title)") {
+        do {
             try EngineInstaller.synchronizeBundledEngine()
-            let result = try await self.runScript("bin/update-hermes", arguments: ["install", channel.rawValue])
-            updated = result.succeeded
-            return result
+            let script = AppPaths.root.appendingPathComponent("bin/update-hermes")
+            let result = try await CommandRunner.runStreaming(
+                executable: script,
+                arguments: ["install", channel.rawValue],
+                currentDirectory: AppPaths.root
+            ) { [weak self] chunk in
+                await self?.appendHermesUpdateOutput(chunk)
+            }
+            if result.succeeded {
+                updated = true
+                hermesUpdateSucceeded = true
+                appendHermesUpdateOutput("\nUpdate completed successfully.\n")
+                activity.insert(ActivityEntry(date: .now, message: "Hermes updated to \(channel.title)", level: .success), at: 0)
+            } else {
+                hermesUpdateSucceeded = false
+                appendHermesUpdateOutput("\nUpdate stopped with exit code \(result.status). Review the message above.\n")
+                activity.insert(ActivityEntry(date: .now, message: "Hermes update failed: \(result.output)", level: .error), at: 0)
+            }
+        } catch {
+            hermesUpdateSucceeded = false
+            appendHermesUpdateOutput("\nERROR: \(error.localizedDescription)\n")
+            activity.insert(ActivityEntry(date: .now, message: error.localizedDescription, level: .error), at: 0)
         }
+        isBusy = false
+        busyMessage = ""
+        await refresh()
         if updated {
             hermesUpdateNotice = nil
             await checkHermesUpdates(reportErrors: false)
         }
         return updated
+    }
+
+    private func appendHermesUpdateOutput(_ text: String) {
+        hermesUpdateLog.append(text)
+        if hermesUpdateLog.count > 100_000 {
+            hermesUpdateLog = String(hermesUpdateLog.suffix(100_000))
+        }
     }
 
     func dismissHermesUpdateNotice() {
