@@ -14,13 +14,13 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 - Mission Control dashboard and first-time setup embedded directly in the native app.
 - One-click graphical installation with no Docker, Homebrew, or remote server.
 - Pinned, reproducible versions of Mission Control and local runtimes.
-- Built-in catalog for Codex, Hermes, Claude Code, Gemini CLI, GitHub Copilot CLI, OpenCode, goose, Aider, Qwen Code, and Kimi Code.
+- Built-in installer catalog for Codex, Hermes, Claude Code, Gemini CLI, GitHub Copilot CLI, OpenCode, goose, Aider, Qwen Code, and Kimi Code; automated Mission Control dispatch currently supports Codex and Hermes.
+- Per-agent Codex model and reasoning selection, populated from the authenticated Codex CLI catalog.
 - Dynamic Hermes provider catalog sourced from the installed Hermes version, including API keys, OAuth accounts, cloud subscriptions, AWS, Vertex AI, local services, and custom endpoints.
 - Multiple isolated Hermes profiles, each permanently bound to its own provider and model, with reusable provider credentials from macOS Keychain.
 - Resilient Hermes execution with activity-aware timeouts, visible progress, provider-error detection, and exponential retry backoff.
 - Automatic Hermes update checks at app launch, with user-confirmed Stable or experimental Latest/Main installation and pre-update backups.
 - Working task controls in the embedded dashboard: stop active Codex/Hermes runs and delete tasks safely after confirmation.
-- Separate cloud-provider catalog for OpenAI, Anthropic, OpenRouter, Google, Z.AI/GLM, Mistral, Groq, xAI, DeepSeek, and Moonshot.
 - Local Mission Control service managed by `launchd`.
 - Shared `AGENTS.md` and `PROJECT_STATE.md` protocol for agent handoff.
 - Safe project import that preserves hidden files and Git history, with optional automatic analysis by any configured agent.
@@ -36,12 +36,12 @@ ContinuityPanel.app installs [Builderz Labs Mission Control](https://github.com/
 
 ## Install the app
 
-Download `ContinuityPanel-0.6.2-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
+Download `ContinuityPanel-0.6.3-macos.zip` from the GitHub Releases page, move `ContinuityPanel.app` to Applications, and open it. On first use:
 
 1. Select **Install Environment** in the app.
 2. Create the local Mission Control administrator when the embedded setup appears.
 3. Add the agents you want under **Agents & Models**.
-4. Sign in or connect cloud providers through the graphical interface.
+4. Sign in to Codex or create Hermes profiles for the cloud providers and models you want.
 5. Create a local project, or use **Import Existing Project** to copy an existing application into ContinuityPanel.
 
 The app never sends a project to the ContinuityPanel maintainer's GitHub account. New projects remain local until their owner explicitly chooses a GitHub account, repository, organization, and visibility.
@@ -76,7 +76,7 @@ Agents are added from the **Agents & Models** screen. The command-line engine re
 ./bin/add-agent hermes
 ```
 
-The graphical interface handles agent installation, Codex browser login, Hermes profiles, provider/model configuration, and reusable provider credentials. Equivalent diagnostic commands include:
+The graphical interface handles agent installation, Codex browser login, per-agent Codex model selection, Hermes profiles, provider/model configuration, and reusable provider credentials. Equivalent diagnostic commands include:
 
 ```bash
 ./bin/codex login
@@ -92,9 +92,12 @@ After installing and authenticating a runtime, open **Mission Control → Agents
 1. Choose a role template such as **Developer**.
 2. Select **Codex CLI** or **Hermes Agent** as the runtime.
 3. Give the agent a name and keep workspace access on read/write for development work.
-4. Review and create it. Local Codex/Hermes agents do not require an OpenClaw gateway.
+4. For Codex, choose the account default or a model and reasoning effort from the installed CLI's live catalog.
+5. Review and create it. Local Codex/Hermes agents do not require an OpenClaw gateway.
 
-Assigned tasks run through the selected CLI. Codex uses its existing ChatGPT/OpenAI login; Hermes uses the provider and model selected in ContinuityPanel. When a task belongs to a Mission Control project whose name or slug matches a folder under `projects/`, execution uses that project as its working directory.
+Assigned tasks run through the selected CLI. Codex uses its existing ChatGPT/OpenAI login and the model stored on that Mission Control agent; Hermes uses the provider and model selected in ContinuityPanel. When a task belongs to a Mission Control project whose name or slug matches a folder under `projects/`, execution uses that project as its working directory.
+
+> Current limitation: Claude Code, Gemini CLI, Copilot CLI, OpenCode, goose, Aider, Qwen Code, and Kimi Code can be installed from the catalog, but they do not yet have ContinuityPanel task-dispatch adapters. Cloud-provider credentials outside Hermes are not yet used by the task dispatcher.
 
 ### Hermes profiles
 

@@ -14,6 +14,17 @@ private struct HermesModelCatalogPayload: Codable, Sendable {
 }
 
 enum HermesConfigurationService {
+    static func mergedModels(current: String, live: [String], fallback: [String]) -> [String] {
+        var seen = Set<String>()
+        return ([current] + live + fallback).compactMap { value in
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            let key = trimmed.lowercased()
+            guard seen.insert(key).inserted else { return nil }
+            return trimmed
+        }
+    }
+
     private static var defaultHermesHome: URL {
         AppPaths.root.appendingPathComponent("home/.hermes", isDirectory: true)
     }
