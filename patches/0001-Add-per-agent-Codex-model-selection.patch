@@ -1,0 +1,590 @@
+From cd87f0e2a67a1407050e97787082f40331d62c43 Mon Sep 17 00:00:00 2001
+From: ContinuityPanel <continuitypanel@local>
+Date: Fri, 17 Jul 2026 11:03:14 +0200
+Subject: [PATCH] Add per-agent Codex model selection
+
+---
+ src/app/api/codex/models/route.ts           |  22 +++
+ src/components/panels/agent-detail-tabs.tsx | 191 +++++++++++++++++++-
+ src/lib/__tests__/codex-models.test.ts      |  35 ++++
+ src/lib/__tests__/task-dispatch.test.ts     |  17 ++
+ src/lib/codex-models.ts                     |  67 +++++++
+ src/lib/task-dispatch.ts                    |  40 +++-
+ 6 files changed, 364 insertions(+), 8 deletions(-)
+ create mode 100644 src/app/api/codex/models/route.ts
+ create mode 100644 src/lib/__tests__/codex-models.test.ts
+ create mode 100644 src/lib/codex-models.ts
+
+diff --git a/src/app/api/codex/models/route.ts b/src/app/api/codex/models/route.ts
+new file mode 100644
+index 0000000..45b128d
+--- /dev/null
++++ b/src/app/api/codex/models/route.ts
+@@ -0,0 +1,22 @@
++import { NextRequest, NextResponse } from 'next/server'
++import { requireRole } from '@/lib/auth'
++import { runCommand } from '@/lib/command'
++import { CODEX_MODEL_FALLBACKS, parseCodexModelCatalog } from '@/lib/codex-models'
++import { logger } from '@/lib/logger'
++
++export async function GET(request: NextRequest) {
++  const auth = requireRole(request, 'viewer')
++  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
++
++  try {
++    const { stdout } = await runCommand('codex', ['debug', 'models'], { timeoutMs: 15_000 })
++    const models = parseCodexModelCatalog(stdout)
++    return NextResponse.json({
++      models: models.length > 0 ? models : CODEX_MODEL_FALLBACKS,
++      source: models.length > 0 ? 'codex-cli' : 'fallback',
++    })
++  } catch (error) {
++    logger.warn({ err: error }, 'Unable to load Codex CLI model catalog')
++    return NextResponse.json({ models: CODEX_MODEL_FALLBACKS, source: 'fallback' })
++  }
++}
+diff --git a/src/components/panels/agent-detail-tabs.tsx b/src/components/panels/agent-detail-tabs.tsx
+index 8159601..6ace0e2 100644
+--- a/src/components/panels/agent-detail-tabs.tsx
++++ b/src/components/panels/agent-detail-tabs.tsx
+@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
+ import { Loader } from '@/components/ui/loader'
+ import { createClientLogger } from '@/lib/client-logger'
+ import { apiFetch, ApiError } from '@/lib/api-client'
++import { CODEX_MODEL_FALLBACKS, type CodexModelOption } from '@/lib/codex-models'
+ import Link from 'next/link'
+ 
+ const log = createClientLogger('AgentDetailTabs')
+@@ -860,6 +861,7 @@ export function CreateAgentModal({
+   const [step, setStep] = useState<1 | 2 | 3>(1)
+   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
+   const [availableModels, setAvailableModels] = useState<string[]>([])
++  const [codexModels, setCodexModels] = useState<CodexModelOption[]>(CODEX_MODEL_FALLBACKS)
+   const [formData, setFormData] = useState({
+     name: '',
+     id: '',
+@@ -872,6 +874,8 @@ export function CreateAgentModal({
+     dockerNetwork: 'none' as 'none' | 'bridge',
+     session_key: '',
+     runtimeType: 'codex' as 'codex' | 'hermes',
++    codexModel: '',
++    codexReasoningEffort: '',
+     write_to_gateway: false,
+     provision_openclaw_workspace: false,
+   })
+@@ -908,6 +912,23 @@ export function CreateAgentModal({
+     loadAvailableModels()
+   }, [])
+ 
++  useEffect(() => {
++    const loadCodexModels = async () => {
++      try {
++        const data = await apiFetch<{ models?: CodexModelOption[] }>(
++          '/api/codex/models',
++          { redirectOnUnauthenticated: false }
++        )
++        if (Array.isArray(data.models) && data.models.length > 0) {
++          setCodexModels(data.models)
++        }
++      } catch {
++        // Keep the documented fallback catalog available.
++      }
++    }
++    loadCodexModels()
++  }, [])
++
+   // When template is selected, pre-fill form
+   const selectTemplate = (type: string | null) => {
+     setSelectedTemplate(type)
+@@ -975,7 +996,14 @@ export function CreateAgentModal({
+             write_to_gateway: false,
+             provision_openclaw_workspace: false,
+             config: formData.runtimeType === 'codex'
+-              ? { dispatchRuntime: 'codex', dispatchModel: 'openai/codex' }
++              ? {
++                  dispatchRuntime: 'codex',
++                  dispatchModel: 'openai/codex',
++                  ...(formData.codexModel ? { codexModel: formData.codexModel } : {}),
++                  ...(formData.codexReasoningEffort
++                    ? { codexReasoningEffort: formData.codexReasoningEffort }
++                    : {}),
++                }
+               : { dispatchRuntime: 'hermes' },
+             gateway_config: {
+               model: { primary: primaryModel },
+@@ -1182,6 +1210,54 @@ export function CreateAgentModal({
+                 </div>
+               </div>
+ 
++              {formData.runtimeType === 'codex' && (
++                <div className="bg-surface-1/50 border border-border rounded-lg p-4 space-y-3">
++                  <div>
++                    <label className="block text-sm text-foreground font-medium mb-1">Codex model</label>
++                    <select
++                      value={formData.codexModel}
++                      onChange={(e) => {
++                        const codexModel = e.target.value
++                        const model = codexModels.find((item) => item.slug === codexModel)
++                        setFormData(prev => ({
++                          ...prev,
++                          codexModel,
++                          codexReasoningEffort: model?.supportedReasoningLevels.includes(prev.codexReasoningEffort)
++                            ? prev.codexReasoningEffort
++                            : '',
++                        }))
++                      }}
++                      className="w-full bg-surface-1 text-foreground border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary/50"
++                    >
++                      <option value="">Account default (automatic)</option>
++                      {codexModels.map((model) => (
++                        <option key={model.slug} value={model.slug}>
++                          {model.displayName} ({model.slug})
++                        </option>
++                      ))}
++                    </select>
++                    <p className="text-xs text-muted-foreground mt-1">
++                      The list comes from the Codex CLI signed in on this Mac.
++                    </p>
++                  </div>
++                  <div>
++                    <label className="block text-sm text-foreground font-medium mb-1">Reasoning effort</label>
++                    <select
++                      value={formData.codexReasoningEffort}
++                      onChange={(e) => setFormData(prev => ({ ...prev, codexReasoningEffort: e.target.value }))}
++                      disabled={!formData.codexModel}
++                      className="w-full bg-surface-1 text-foreground border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-50"
++                    >
++                      <option value="">Model default</option>
++                      {(codexModels.find((model) => model.slug === formData.codexModel)?.supportedReasoningLevels || [])
++                        .map((effort) => (
++                          <option key={effort} value={effort}>{effort}</option>
++                        ))}
++                    </select>
++                  </div>
++                </div>
++              )}
++
+               <div className="hidden">
+                 <label className="block text-sm text-muted-foreground mb-1">{t('modelTier')}</label>
+                 <div className="flex gap-2">
+@@ -1328,7 +1404,17 @@ export function CreateAgentModal({
+                       <div><span className="text-muted-foreground">{t('templateLabel')}:</span> <span className="text-foreground">{selectedTemplateData?.label || t('custom')}</span></div>
+                       <div><span className="text-muted-foreground">Runtime:</span> <span className="text-foreground">{formData.runtimeType === 'codex' ? 'Codex CLI' : 'Hermes Agent'}</span></div>
+                       <div><span className="text-muted-foreground">{t('toolsLabel')}:</span> <span className="text-foreground">{selectedTemplateData?.toolCount || t('custom')}</span></div>
+-                      <div className="col-span-2"><span className="text-muted-foreground">Model:</span> <span className="text-foreground">{formData.runtimeType === 'codex' ? 'Codex account default' : 'ContinuityPanel Hermes configuration'}</span></div>
++                      <div className="col-span-2">
++                        <span className="text-muted-foreground">Model:</span>{' '}
++                        <span className="text-foreground">
++                          {formData.runtimeType === 'codex'
++                            ? (formData.codexModel || 'Codex account default')
++                            : 'ContinuityPanel Hermes configuration'}
++                          {formData.runtimeType === 'codex' && formData.codexReasoningEffort
++                            ? ` · ${formData.codexReasoningEffort} reasoning`
++                            : ''}
++                        </span>
++                      </div>
+                       <div><span className="text-muted-foreground">{t('workspace')}:</span> <span className="text-foreground">{formData.workspaceAccess}</span></div>
+                       <div><span className="text-muted-foreground">{t('sandbox')}:</span> <span className="text-foreground">{formData.sandboxMode}</span></div>
+                       {formData.session_key && (
+@@ -1422,6 +1508,7 @@ export function ConfigTab({
+   onSave: () => void
+ }) {
+   const t = useTranslations('agentDetail')
++  const isCodexRuntime = String((agent as any).runtime_type || '') === 'codex'
+   const [config, setConfig] = useState<any>(agent.config || {})
+   const [editing, setEditing] = useState(false)
+   const [showJson, setShowJson] = useState(false)
+@@ -1429,6 +1516,7 @@ export function ConfigTab({
+   const [error, setError] = useState<string | null>(null)
+   const [jsonInput, setJsonInput] = useState('')
+   const [availableModels, setAvailableModels] = useState<string[]>([])
++  const [codexModels, setCodexModels] = useState<CodexModelOption[]>(CODEX_MODEL_FALLBACKS)
+   const [newFallbackModel, setNewFallbackModel] = useState('')
+   const [newAllowTool, setNewAllowTool] = useState('')
+   const [newDenyTool, setNewDenyTool] = useState('')
+@@ -1491,6 +1579,24 @@ export function ConfigTab({
+     loadAvailableModels()
+   }, [])
+ 
++  useEffect(() => {
++    if (!isCodexRuntime) return
++    const loadCodexModels = async () => {
++      try {
++        const data = await apiFetch<{ models?: CodexModelOption[] }>(
++          '/api/codex/models',
++          { redirectOnUnauthenticated: false }
++        )
++        if (Array.isArray(data.models) && data.models.length > 0) {
++          setCodexModels(data.models)
++        }
++      } catch {
++        // Keep the documented fallback catalog available.
++      }
++    }
++    loadCodexModels()
++  }, [isCodexRuntime])
++
+   const updateModelConfig = (updater: (current: { primary?: string; fallbacks?: string[] }) => { primary?: string; fallbacks?: string[] }) => {
+     setConfig((prev: any) => {
+       const nextModel = updater({ ...(prev?.model || {}) })
+@@ -1529,6 +1635,15 @@ export function ConfigTab({
+     }))
+   }
+ 
++  const updateCodexField = (field: 'codexModel' | 'codexReasoningEffort', value: string) => {
++    setConfig((prev: any) => {
++      const next = { ...prev }
++      if (value) next[field] = value
++      else delete next[field]
++      return next
++    })
++  }
++
+   const addTool = (list: 'allow' | 'deny', value: string) => {
+     const trimmed = value.trim()
+     if (!trimmed) return
+@@ -1575,7 +1690,7 @@ export function ConfigTab({
+     setSaving(true)
+     setError(null)
+     try {
+-      if (!showJson) {
++      if (!showJson && !isCodexRuntime) {
+         const primary = String(config?.model?.primary || '').trim()
+         if (!primary) {
+           throw new Error('Primary model is required')
+@@ -1585,7 +1700,7 @@ export function ConfigTab({
+         method: 'PUT',
+         body: JSON.stringify({
+           gateway_config: showJson ? JSON.parse(jsonInput) : config,
+-          write_to_gateway: true,
++          write_to_gateway: !isCodexRuntime,
+         }),
+       })
+       setEditing(false)
+@@ -1626,11 +1741,15 @@ export function ConfigTab({
+             : JSON.stringify(modelPrimaryRaw))
+         : '')
+   const modelFallbacks = Array.isArray(model.fallbacks) ? model.fallbacks : []
++  const selectedCodexModel = codexModels.find((item) => item.slug === config.codexModel)
++  const codexReasoningLevels = selectedCodexModel?.supportedReasoningLevels || []
+ 
+   return (
+     <div className="p-6 space-y-4">
+       <div className="flex justify-between items-center">
+-        <h4 className="text-lg font-medium text-foreground">{t('openclawConfig')}</h4>
++        <h4 className="text-lg font-medium text-foreground">
++          {isCodexRuntime ? 'Codex configuration' : t('openclawConfig')}
++        </h4>
+         <div className="flex gap-2">
+           <Button
+             onClick={() => setShowJson(!showJson)}
+@@ -1682,7 +1801,68 @@ export function ConfigTab({
+       ) : (
+         /* Structured view */
+         <div className="space-y-4">
++          {isCodexRuntime && (
++            <div className="bg-surface-1/50 rounded-lg p-4">
++              <h5 className="text-sm font-medium text-foreground mb-2">Codex model</h5>
++              {editing ? (
++                <div className="space-y-3">
++                  <div>
++                    <label className="block text-xs text-muted-foreground mb-1">Model used by this agent</label>
++                    <select
++                      value={String(config.codexModel || '')}
++                      onChange={(e) => {
++                        const value = e.target.value
++                        const option = codexModels.find((item) => item.slug === value)
++                        updateCodexField('codexModel', value)
++                        if (!option?.supportedReasoningLevels.includes(String(config.codexReasoningEffort || ''))) {
++                          updateCodexField('codexReasoningEffort', '')
++                        }
++                      }}
++                      className="w-full bg-surface-1 text-foreground rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
++                    >
++                      <option value="">Account default (automatic)</option>
++                      {codexModels.map((item) => (
++                        <option key={item.slug} value={item.slug}>
++                          {item.displayName} ({item.slug})
++                        </option>
++                      ))}
++                    </select>
++                  </div>
++                  <div>
++                    <label className="block text-xs text-muted-foreground mb-1">Reasoning effort</label>
++                    <select
++                      value={String(config.codexReasoningEffort || '')}
++                      onChange={(e) => updateCodexField('codexReasoningEffort', e.target.value)}
++                      disabled={!config.codexModel}
++                      className="w-full bg-surface-1 text-foreground rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-50"
++                    >
++                      <option value="">Model default</option>
++                      {codexReasoningLevels.map((effort) => (
++                        <option key={effort} value={effort}>{effort}</option>
++                      ))}
++                    </select>
++                  </div>
++                </div>
++              ) : (
++                <div className="text-sm space-y-1">
++                  <div>
++                    <span className="text-muted-foreground">Model:</span>{' '}
++                    <span className="text-foreground font-mono">{config.codexModel || 'Account default'}</span>
++                  </div>
++                  <div>
++                    <span className="text-muted-foreground">Reasoning:</span>{' '}
++                    <span className="text-foreground">{config.codexReasoningEffort || 'Model default'}</span>
++                  </div>
++                </div>
++              )}
++              <p className="text-xs text-muted-foreground mt-3">
++                These settings apply only to this agent and are passed to each Codex task.
++              </p>
++            </div>
++          )}
++
+           {/* Model */}
++          {!isCodexRuntime && (
+           <div className="bg-surface-1/50 rounded-lg p-4">
+             <h5 className="text-sm font-medium text-foreground mb-2">{t('model')}</h5>
+             {editing ? (
+@@ -1764,6 +1944,7 @@ export function ConfigTab({
+               </div>
+             )}
+           </div>
++          )}
+ 
+           {/* Identity */}
+           <div className="bg-surface-1/50 rounded-lg p-4">
+diff --git a/src/lib/__tests__/codex-models.test.ts b/src/lib/__tests__/codex-models.test.ts
+new file mode 100644
+index 0000000..399a855
+--- /dev/null
++++ b/src/lib/__tests__/codex-models.test.ts
+@@ -0,0 +1,35 @@
++import { describe, expect, it } from 'vitest'
++import { parseCodexModelCatalog } from '@/lib/codex-models'
++
++describe('parseCodexModelCatalog', () => {
++  it('returns compact model data and reasoning efforts from the Codex catalog', () => {
++    const models = parseCodexModelCatalog(JSON.stringify({
++      models: [{
++        slug: 'gpt-5.6-sol',
++        display_name: 'GPT-5.6-Sol',
++        description: 'Frontier model',
++        visibility: 'list',
++        default_reasoning_level: 'medium',
++        supported_reasoning_levels: [{ effort: 'low' }, { effort: 'high' }],
++        base_instructions: 'large value that must not be exposed',
++      }],
++    }))
++
++    expect(models).toEqual([{
++      slug: 'gpt-5.6-sol',
++      displayName: 'GPT-5.6-Sol',
++      description: 'Frontier model',
++      defaultReasoningLevel: 'medium',
++      supportedReasoningLevels: ['low', 'high'],
++    }])
++  })
++
++  it('filters hidden and malformed entries', () => {
++    expect(parseCodexModelCatalog(JSON.stringify({
++      models: [
++        { slug: 'hidden', visibility: 'hide' },
++        { display_name: 'Missing slug' },
++      ],
++    }))).toEqual([])
++  })
++})
+diff --git a/src/lib/__tests__/task-dispatch.test.ts b/src/lib/__tests__/task-dispatch.test.ts
+index 1a98903..c725ebf 100644
+--- a/src/lib/__tests__/task-dispatch.test.ts
++++ b/src/lib/__tests__/task-dispatch.test.ts
+@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
+ import {
+   getDispatchRetryDelaySeconds,
+   getHermesTerminalError,
++  resolveCodexCliSettings,
+   resolveTaskDispatchModelOverride,
+ } from '@/lib/task-dispatch'
+ 
+@@ -24,6 +25,22 @@ describe('resolveTaskDispatchModelOverride', () => {
+   })
+ })
+ 
++describe('resolveCodexCliSettings', () => {
++  it('returns the Codex model and reasoning effort stored on the agent', () => {
++    expect(resolveCodexCliSettings({
++      agent_config: '{"codexModel":"gpt-5.6-sol","codexReasoningEffort":"high"}',
++    })).toEqual({ model: 'gpt-5.6-sol', reasoningEffort: 'high' })
++  })
++
++  it('falls back to account defaults for malformed or unsupported values', () => {
++    expect(resolveCodexCliSettings({ agent_config: '{bad json' }))
++      .toEqual({ model: '', reasoningEffort: '' })
++    expect(resolveCodexCliSettings({
++      agent_config: '{"codexModel":"claude-opus","codexReasoningEffort":"extreme"}',
++    })).toEqual({ model: '', reasoningEffort: '' })
++  })
++})
++
+ describe('Hermes runtime resilience', () => {
+   it('treats a rate-limit response printed by Hermes as a terminal error', () => {
+     expect(getHermesTerminalError('API call failed after 3 retries: HTTP 429: Too Many Requests'))
+diff --git a/src/lib/codex-models.ts b/src/lib/codex-models.ts
+new file mode 100644
+index 0000000..09b0921
+--- /dev/null
++++ b/src/lib/codex-models.ts
+@@ -0,0 +1,67 @@
++export interface CodexModelOption {
++  slug: string
++  displayName: string
++  description: string
++  defaultReasoningLevel: string
++  supportedReasoningLevels: string[]
++}
++
++export const CODEX_MODEL_FALLBACKS: CodexModelOption[] = [
++  {
++    slug: 'gpt-5.6-sol',
++    displayName: 'GPT-5.6 Sol',
++    description: 'Latest frontier agentic coding model.',
++    defaultReasoningLevel: 'low',
++    supportedReasoningLevels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
++  },
++  {
++    slug: 'gpt-5.6-terra',
++    displayName: 'GPT-5.6 Terra',
++    description: 'Balanced agentic coding model for everyday work.',
++    defaultReasoningLevel: 'medium',
++    supportedReasoningLevels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
++  },
++  {
++    slug: 'gpt-5.6-luna',
++    displayName: 'GPT-5.6 Luna',
++    description: 'Fast coding model for clear and repeatable tasks.',
++    defaultReasoningLevel: 'medium',
++    supportedReasoningLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
++  },
++]
++
++export function parseCodexModelCatalog(raw: string): CodexModelOption[] {
++  const payload = JSON.parse(raw) as { models?: unknown }
++  if (!Array.isArray(payload.models)) return []
++
++  return payload.models.flatMap((value): CodexModelOption[] => {
++    if (!value || typeof value !== 'object') return []
++    const model = value as Record<string, unknown>
++    const slug = typeof model.slug === 'string' ? model.slug.trim() : ''
++    if (!slug || model.visibility === 'hide') return []
++
++    const supportedReasoningLevels = Array.isArray(model.supported_reasoning_levels)
++      ? model.supported_reasoning_levels
++          .map((level) => {
++            if (typeof level === 'string') return level.trim()
++            if (level && typeof level === 'object' && typeof (level as Record<string, unknown>).effort === 'string') {
++              return ((level as Record<string, unknown>).effort as string).trim()
++            }
++            return ''
++          })
++          .filter(Boolean)
++      : []
++
++    return [{
++      slug,
++      displayName: typeof model.display_name === 'string' && model.display_name.trim()
++        ? model.display_name.trim()
++        : slug,
++      description: typeof model.description === 'string' ? model.description.trim() : '',
++      defaultReasoningLevel: typeof model.default_reasoning_level === 'string'
++        ? model.default_reasoning_level.trim()
++        : '',
++      supportedReasoningLevels: Array.from(new Set(supportedReasoningLevels)),
++    }]
++  })
++}
+diff --git a/src/lib/task-dispatch.ts b/src/lib/task-dispatch.ts
+index f38fce1..bf425f0 100644
+--- a/src/lib/task-dispatch.ts
++++ b/src/lib/task-dispatch.ts
+@@ -145,6 +145,26 @@ export function resolveTaskDispatchModelOverride(task: Pick<DispatchableTask, 'a
+   return null
+ }
+ 
++export function resolveCodexCliSettings(
++  task: Pick<DispatchableTask, 'agent_config'>
++): { model: string; reasoningEffort: string } {
++  if (!task.agent_config) return { model: '', reasoningEffort: '' }
++  try {
++    const cfg = JSON.parse(task.agent_config)
++    const model = typeof cfg.codexModel === 'string' && /^gpt-[a-z0-9.-]+$/i.test(cfg.codexModel.trim())
++      ? cfg.codexModel.trim()
++      : ''
++    const allowedEfforts = new Set(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'])
++    const reasoningEffort = typeof cfg.codexReasoningEffort === 'string'
++      && allowedEfforts.has(cfg.codexReasoningEffort.trim().toLowerCase())
++      ? cfg.codexReasoningEffort.trim().toLowerCase()
++      : ''
++    return { model, reasoningEffort }
++  } catch {
++    return { model: '', reasoningEffort: '' }
++  }
++}
++
+ /** Extract the gateway agent identifier from the agent's config JSON.
+  *  Falls back to agent_name (display name) if openclawId is not set. */
+ function resolveGatewayAgentId(task: DispatchableTask): string {
+@@ -955,6 +975,7 @@ async function callCodexViaCli(
+   task: DispatchableTask,
+   prompt: string,
+   model: string,
++  reasoningEffort = '',
+ ): Promise<AgentResponseParsed> {
+   const os = require('node:os')
+   const path = require('node:path')
+@@ -969,9 +990,10 @@ async function callCodexViaCli(
+   // gpt-5.5); claude-* or unsupported gpt ids would 400. Pass --model only for
+   // explicit gpt overrides, otherwise let the CLI use its configured default.
+   if (model && /^gpt-/i.test(model)) args.push('--model', model)
++  if (reasoningEffort) args.push('-c', `model_reasoning_effort="${reasoningEffort}"`)
+   args.push('-')
+ 
+-  logger.info({ taskId: task.id, model, agent: task.agent_name }, 'Dispatching task via Codex CLI')
++  logger.info({ taskId: task.id, model, reasoningEffort, agent: task.agent_name }, 'Dispatching task via Codex CLI')
+ 
+   return await new Promise<AgentResponseParsed>((resolve, reject) => {
+     const proc = spawn('codex', args, {
+@@ -1316,7 +1338,13 @@ export async function runAegisReviews(): Promise<{ ok: boolean; message: string
+         if (localReviewer?.runtime_type === 'hermes') {
+           agentResponse = await callHermesViaCli(reviewTask, prompt)
+         } else if (localReviewer?.runtime_type === 'codex' || isCodexCliAvailable()) {
+-          agentResponse = await callCodexViaCli(reviewTask, prompt, '')
++          const codexSettings = resolveCodexCliSettings(reviewTask)
++          agentResponse = await callCodexViaCli(
++            reviewTask,
++            prompt,
++            codexSettings.model,
++            codexSettings.reasoningEffort,
++          )
+         } else if (isDirectDispatchAvailable()) {
+           agentResponse = await callDirectly(reviewTask, prompt)
+         } else {
+@@ -1661,7 +1689,13 @@ export async function dispatchAssignedTasks(): Promise<{ ok: boolean; message: s
+       const useDirectApi = !isGatewayAvailable() && isDirectDispatchAvailable()
+ 
+       if (!targetSession && task.agent_runtime_type === 'codex') {
+-        agentResponse = await callCodexViaCli(task, prompt, '')
++        const codexSettings = resolveCodexCliSettings(task)
++        agentResponse = await callCodexViaCli(
++          task,
++          prompt,
++          codexSettings.model,
++          codexSettings.reasoningEffort,
++        )
+       } else if (!targetSession && task.agent_runtime_type === 'hermes') {
+         agentResponse = await callHermesViaCli(task, prompt)
+       } else if (useDirectApi && !targetSession) {
+-- 
+2.50.1 (Apple Git-155)
+

@@ -331,11 +331,11 @@ struct HermesProfileEditorView: View {
                 profileID: HermesProfileID.isValid(profileID) ? profileID : HermesProfileID.defaultProfile
             )
             guard selectedProviderID == provider.id else { return }
-            if !model.isEmpty && !models.contains(model) {
-                availableModels = [model] + models
-            } else {
-                availableModels = models
-            }
+            availableModels = HermesConfigurationService.mergedModels(
+                current: model,
+                live: models,
+                fallback: provider.models
+            )
         } catch {
             guard selectedProviderID == provider.id else { return }
             availableModels = provider.models

@@ -88,3 +88,13 @@ private actor StreamCollector {
     #expect(provider.authenticationLabel.contains("OAuth"))
     #expect(provider.hasModelCatalog)
 }
+
+@Test func hermesModelCatalogMergesLiveFallbackAndCurrentValues() {
+    #expect(
+        HermesConfigurationService.mergedModels(
+            current: "custom/model",
+            live: ["openai/gpt-5", "OPENAI/GPT-5", "live/model"],
+            fallback: ["fallback/model", "live/model"]
+        ) == ["custom/model", "openai/gpt-5", "live/model", "fallback/model"]
+    )
+}
