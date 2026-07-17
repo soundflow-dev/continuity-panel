@@ -49,6 +49,7 @@ MC_PATCHES=(
   "$ROOT/patches/mission-control-task-delete-state.patch"
   "$ROOT/patches/mission-control-task-retry.patch"
   "$ROOT/patches/0001-Add-per-agent-Codex-model-selection.patch"
+  "$ROOT/patches/0002-Fix-Codex-models-tab.patch"
 )
 for MC_PATCH in "${MC_PATCHES[@]}"; do
   if git -C "$ROOT/mission-control" apply --reverse --check "$MC_PATCH" >/dev/null 2>&1; then
