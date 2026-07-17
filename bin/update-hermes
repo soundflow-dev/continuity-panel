@@ -8,6 +8,8 @@ UV="$ROOT/runtime/uv-bin/uv"
 DB="$ROOT/mission-control/.data/mission-control.db"
 COMMAND="${1:-check}"
 CHANNEL="${2:-stable}"
+export HOME="$ROOT/home"
+export HERMES_HOME="$ROOT/home/.hermes"
 
 require_installation() {
   if [[ ! -d "$HERMES_REPO/.git" ]] || [[ ! -x "$HERMES_BIN" ]]; then
@@ -88,7 +90,7 @@ install_update() {
   mkdir -p "$backup_dir"
   chmod 700 "$backup_dir"
   echo "Creating a protected backup of Hermes configuration and sessions…"
-  "$HERMES_BIN" backup --quiet --label "before-continuitypanel-update" --output "$backup_file"
+  "$HERMES_BIN" backup -o "$backup_file"
   chmod 600 "$backup_file"
 
   if [[ "$CHANNEL" == "latest" ]]; then
